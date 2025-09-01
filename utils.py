@@ -221,6 +221,13 @@ def temporal_NDCG_atK(
     assert len(r) == len(test_data)
     pred_data = r[:, :k]
 
+    # Debug: Print input shapes and sample data
+    print(f"[TEMP_DEBUG] test_data length: {len(test_data)}")
+    print(f"[TEMP_DEBUG] r shape: {r.shape}")
+    print(f"[TEMP_DEBUG] pred_data shape: {pred_data.shape}")
+    print(f"[TEMP_DEBUG] Sample pred_data: {pred_data[:3]}")
+    print(f"[TEMP_DEBUG] Sample test_data: {test_data[:3]}")
+
     # Get current time for decay calculation
     t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
 
@@ -265,6 +272,9 @@ def temporal_NDCG_atK(
             # DCG calculation (predicted case)
             if j < k and pred_data[i, j] == 1:
                 dcg += time_decay / np.log2(j + 2)
+
+    # Debug: Print final values
+    print(f"[TEMP_DEBUG] Final dcg: {dcg}, idcg: {idcg}")
 
     # Normalize
     if idcg == 0.0:
