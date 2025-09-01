@@ -150,5 +150,11 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
         results["recall"] /= float(len(users))
         results["precision"] /= float(len(users))
         results["ndcg"] /= float(len(users))
+
+        # Format output like the target
         print(results)
+        print(
+            f"[TEST] P@10 {results['precision'][0]:.4f} | R@10 {results['recall'][0]:.4f} | NDCG@10 {results['ndcg'][0]:.4f} || P@20 {results['precision'][1]:.4f} | R@20 {results['recall'][1]:.4f} | NDCG@20 {results['ndcg'][1]:.4f}"
+        )
+        print("[TEST] running evaluation...")
         return results

@@ -4,6 +4,7 @@ import os
 import csv
 
 import torch
+from tqdm import tqdm
 
 import Procedure
 import register
@@ -71,11 +72,20 @@ else:
     csv_file = open(csv_path, mode="a", newline="")
     csv_writer = csv.writer(csv_file)
 
+
+def get_gpu_memory():
+    """Get current GPU memory usage in MB"""
+    if torch.cuda.is_available():
+        return int(torch.cuda.memory_allocated() / 1024 / 1024)
+    return 0
+
+
 tip = "pre"
 try:
-    for epoch in range(world.TRAIN_epochs + 1):
-        print("======================")
-        print(f"EPOCH[{epoch}/{world.TRAIN_epochs}]")
+    # Create progress bar for training
+    pbar = tqdm(range(world.TRAIN_epochs + 1), desc="Training", unit="epoch")
+
+    for epoch in pbar:
 
         metrics = {
             "ndcg@10": None,
@@ -118,7 +128,10 @@ try:
         loss_avg, comp_avgs = Procedure.BPR_train_original(
             dataset, Recmodel, bpr, epoch
         )
-        print(f"[saved][BPR aver loss{loss_avg:.3e}] comps: {comp_avgs}")
+
+        # Update progress bar with current loss and GPU memory
+        gpu_mem = get_gpu_memory()
+        pbar.set_postfix(loss=f"{loss_avg:.3f}", gpu_mem=f"{gpu_mem}MB")
 
         # ===== Write to TensorBoard =====
         writer.add_scalar("loss/total", loss_avg, epoch)
@@ -152,6 +165,8 @@ try:
             ]
         )
         csv_file.flush()
+
+    pbar.close()
     end = time.time()
     print("The total time:", (end - start) / 60)
     # torch.save(Recmodel.state_dict(), weight_file)
