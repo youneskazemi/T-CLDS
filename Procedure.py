@@ -160,21 +160,6 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             # Get predictions and ground truth for this k
             r = utils.getLabel(groundTrue_list, [rating[:k] for rating in rating_list])
 
-            # Debug: Print the structure to understand what r looks like
-            print(f"[DEBUG] r shape: {r.shape}")
-            print(f"[DEBUG] r type: {type(r)}")
-            print(f"[DEBUG] groundTrue_list length: {len(groundTrue_list)}")
-            print(f"[DEBUG] rating_list length: {len(rating_list)}")
-            print(
-                f"[DEBUG] First few elements of r: {r[:2] if len(r) > 0 else 'empty'}"
-            )
-
-            # Debug: Let's see what's actually in rating_list
-            print(f"[DEBUG] rating_list[0] shape: {rating_list[0].shape}")
-            print(f"[DEBUG] rating_list[0] type: {type(rating_list[0])}")
-            print(f"[DEBUG] First few predictions: {rating_list[0][:3]}")
-            print(f"[DEBUG] Sample ground truth: {groundTrue_list[0][:3]}")
-
             # Create a proper mapping for temporal metrics
             # We need to create a flat list of test data and corresponding user IDs
             # that matches what the temporal metrics expect
@@ -225,11 +210,6 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
 
             # Convert to numpy arrays
             temporal_predictions = np.array(temporal_predictions)
-
-            # Debug: Check if we're getting non-zero predictions
-            print(f"[DEBUG] temporal_predictions shape: {temporal_predictions.shape}")
-            print(f"[DEBUG] temporal_predictions sum: {np.sum(temporal_predictions)}")
-            print(f"[DEBUG] Sample temporal_predictions: {temporal_predictions[:3]}")
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
