@@ -167,24 +167,40 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             flattened_user_item_pairs = []
             flattened_r = []
 
+            user_idx_global = 0  # Global user index across all batches
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
             ):
                 # batch_users is a list of user IDs for this batch
                 # user_items is a list of test items for each user in this batch
-                for user_idx, user_id in enumerate(batch_users):
+                for user_idx_in_batch, user_id in enumerate(batch_users):
                     # Ensure user_id is a single integer, not a list
                     if isinstance(user_id, list):
                         user_id = user_id[0]
 
                     # Add this user's test items to the flattened list
-                    flattened_groundTrue.append(user_items[user_idx])
+                    flattened_groundTrue.append(user_items[user_idx_in_batch])
                     flattened_user_item_pairs.append(user_id)
                     # Also flatten the corresponding r matrix row
-                    flattened_r.append(r[batch_idx][user_idx])
+                    flattened_r.append(r[batch_idx][user_idx_in_batch])
+
+                    user_idx_global += 1
 
             # Convert flattened_r to numpy array
             flattened_r = np.array(flattened_r)
+
+            # Debug: Print the structure to understand the mapping
+            print(f"[DEBUG] Total users: {len(users)}")
+            print(f"[DEBUG] Total batches: {len(users_list)}")
+            print(f"[DEBUG] flattened_groundTrue length: {len(flattened_groundTrue)}")
+            print(
+                f"[DEBUG] flattened_user_item_pairs length: {len(flattened_user_item_pairs)}"
+            )
+            print(f"[DEBUG] flattened_r shape: {flattened_r.shape}")
+            print(f"[DEBUG] r shape: {r.shape}")
+            print(
+                f"[DEBUG] First few flattened_user_item_pairs: {flattened_user_item_pairs[:10]}"
+            )
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
