@@ -169,6 +169,12 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                 f"[DEBUG] First few elements of r: {r[:2] if len(r) > 0 else 'empty'}"
             )
 
+            # Debug: Let's see what's actually in rating_list
+            print(f"[DEBUG] rating_list[0] shape: {rating_list[0].shape}")
+            print(f"[DEBUG] rating_list[0] type: {type(rating_list[0])}")
+            print(f"[DEBUG] First few predictions: {rating_list[0][:3]}")
+            print(f"[DEBUG] Sample ground truth: {groundTrue_list[0][:3]}")
+
             # Create a proper mapping for temporal metrics
             # We need to create a flat list of test data and corresponding user IDs
             # that matches what the temporal metrics expect
