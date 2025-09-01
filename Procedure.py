@@ -176,18 +176,6 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     # This ensures we have one user ID per test instance
                     user_item_pairs.append(user_id)
 
-            # Debug: Print the structure to understand the mapping
-            print(f"[DEBUG] Total users: {len(users)}")
-            print(f"[DEBUG] Total batches: {len(users_list)}")
-            print(f"[DEBUG] user_item_pairs length: {len(user_item_pairs)}")
-            print(
-                f"[DEBUG] groundTrue_list total items: {sum(len(items) for items in groundTrue_list)}"
-            )
-            print(f"[DEBUG] First few user_item_pairs: {user_item_pairs[:10]}")
-            print(
-                f"[DEBUG] First few groundTrue items: {[len(items) for items in groundTrue_list[:5]]}"
-            )
-
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
                 groundTrue_list, r, k, dataset, user_item_pairs

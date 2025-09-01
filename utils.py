@@ -211,7 +211,7 @@ def getLabel(test_data, pred_data):
 # ====================Temporal Metrics==============================
 # =========================================================
 def temporal_NDCG_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
+    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.0001
 ):
     """
     Temporal NDCG@K with exponential time decay
@@ -223,14 +223,6 @@ def temporal_NDCG_atK(
 
     # Get current time for decay calculation
     t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
-
-    # Debug info
-    print(f"[DEBUG temporal_NDCG] test_data length: {len(test_data)}")
-    print(
-        f"[DEBUG temporal_NDCG] user_item_pairs length: {len(user_item_pairs) if user_item_pairs else 'None'}"
-    )
-    print(f"[DEBUG temporal_NDCG] t_now: {t_now}")
-    print(f"[DEBUG temporal_NDCG] has get_ui_time: {hasattr(dataset, 'get_ui_time')}")
 
     # Calculate DCG with time decay
     dcg = 0.0
@@ -257,18 +249,12 @@ def temporal_NDCG_atK(
                         # Calculate time difference in hours
                         delta_t = max(0, (t_now - t_interaction) / 3600.0)  # hours
                         time_decay = np.exp(-time_decay_lambda * delta_t)
-                        print(
-                            f"[DEBUG temporal_NDCG] i={i}, user_id={user_id}, item_id={item_id}, t_interaction={t_interaction}, delta_t={delta_t:.2f}, time_decay={time_decay:.4f}"
-                        )
+
                     except Exception as e:
-                        print(
-                            f"[DEBUG temporal_NDCG] Error at i={i}, user_id={user_id}, item_id={item_id}: {e}"
-                        )
+
                         time_decay = 1.0
                 else:
-                    print(
-                        f"[DEBUG temporal_NDCG] Index {i} out of range for user_item_pairs (len={len(user_item_pairs)})"
-                    )
+                    print()
                     time_decay = 1.0
             else:
                 time_decay = 1.0  # fallback if no temporal info
@@ -287,7 +273,7 @@ def temporal_NDCG_atK(
 
 
 def temporal_Recall_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
+    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.0001
 ):
     """
     Time-aware Recall@K with exponential time decay
