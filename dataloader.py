@@ -431,7 +431,7 @@ class SocialGraphDataset(GraphDataset):
 
         # fast (u,i)->time lookup for sampler/loss
         self._ui_time = {
-            (int(r.user), int(r.item)): float(r[self._time_col])
+            (int(r["user"]), int(r["item"])): float(r[self._time_col])
             for _, r in self.train_set.iterrows()
         }
 
