@@ -236,7 +236,7 @@ def temporal_NDCG_atK(
             # Get interaction time for this (user, item) pair
             if hasattr(dataset, "get_ui_time") and user_item_pairs:
                 # Find the user ID for this test instance
-                user_id = user_item_pairs[i][0]  # Each batch maps to one user
+                user_id = user_item_pairs[i]  # Each batch maps to one user
                 t_interaction, _ = dataset.get_ui_time(user_id, item)
                 # Calculate time difference in hours
                 delta_t = max(0, (t_now - t_interaction) / 3600.0)  # hours
@@ -277,7 +277,7 @@ def temporal_Recall_atK(
             # Get time decay for this interaction
             if hasattr(dataset, "get_ui_time") and user_item_pairs:
                 # Find the user ID for this test instance
-                user_id = user_item_pairs[i][0]  # Each batch maps to one user
+                user_id = user_item_pairs[i]  # Each batch maps to one user
                 t_interaction, _ = dataset.get_ui_time(user_id, item)
                 delta_t = max(0, (t_now - t_interaction) / 3600.0)
                 time_decay = np.exp(-time_decay_lambda * delta_t)
@@ -320,7 +320,7 @@ def Hit_Ratio_over_Time(
             recent_times = []
             for item in items:
                 # Find the user ID for this test instance
-                user_id = user_item_pairs[i][0]  # Each batch maps to one user
+                user_id = user_item_pairs[i]  # Each batch maps to one user
                 t_interaction, _ = dataset.get_ui_time(user_id, item)
                 recent_times.append(t_interaction)
 
