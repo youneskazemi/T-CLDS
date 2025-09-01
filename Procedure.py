@@ -162,16 +162,12 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
 
             # Create user-item mapping for temporal metrics
             user_item_pairs = []
-            for user_idx, user_items in enumerate(groundTrue_list):
+            for batch_idx, (batch_users, user_items) in enumerate(
+                zip(users_list, groundTrue_list)
+            ):
                 for item in user_items:
-                    user_item_pairs.append(
-                        (
-                            users_list[user_idx // u_batch_size][
-                                user_idx % u_batch_size
-                            ],
-                            item,
-                        )
-                    )
+                    # Map each item to its corresponding user in the batch
+                    user_item_pairs.append((batch_users[0], item))
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
