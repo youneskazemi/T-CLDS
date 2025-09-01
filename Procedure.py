@@ -165,6 +165,7 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             # We need to flatten it to [user1_items, user2_items, user3_items, ...]
             flattened_groundTrue = []
             flattened_user_item_pairs = []
+            flattened_r = []
 
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
@@ -179,21 +180,26 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     # Add this user's test items to the flattened list
                     flattened_groundTrue.append(user_items[user_idx])
                     flattened_user_item_pairs.append(user_id)
+                    # Also flatten the corresponding r matrix row
+                    flattened_r.append(r[batch_idx][user_idx])
+
+            # Convert flattened_r to numpy array
+            flattened_r = np.array(flattened_r)
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
-                flattened_groundTrue, r, k, dataset, flattened_user_item_pairs
+                flattened_groundTrue, flattened_r, k, dataset, flattened_user_item_pairs
             )
 
             # Temporal Recall@K
             results["trecall"][k_idx] = utils.temporal_Recall_atK(
-                flattened_groundTrue, r, k, dataset, flattened_user_item_pairs
+                flattened_groundTrue, flattened_r, k, dataset, flattened_user_item_pairs
             )
 
             # Hit Ratio over Time (1 month window)
             results["hr_time"][k_idx] = utils.Hit_Ratio_over_Time(
                 flattened_groundTrue,
-                r,
+                flattened_r,
                 k,
                 dataset,
                 time_window_hours=24 * 30,

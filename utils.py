@@ -211,7 +211,7 @@ def getLabel(test_data, pred_data):
 # ====================Temporal Metrics==============================
 # =========================================================
 def temporal_NDCG_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.0001
+    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
 ):
     """
     Temporal NDCG@K with exponential time decay
@@ -273,7 +273,7 @@ def temporal_NDCG_atK(
 
 
 def temporal_Recall_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.0001
+    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
 ):
     """
     Time-aware Recall@K with exponential time decay
