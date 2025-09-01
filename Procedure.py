@@ -165,33 +165,15 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
             ):
-                # Debug: print the actual structure
-                print(f"Debug: batch_idx={batch_idx}")
-                print(f"Debug: batch_users={batch_users}, type={type(batch_users)}")
-                print(
-                    f"Debug: batch_users[0]={batch_users[0]}, type={type(batch_users[0])}"
-                )
-                print(f"Debug: user_items={user_items}, type={type(user_items)}")
-                print(
-                    f"Debug: user_items[0]={user_items[0]}, type={type(user_items[0])}"
-                )
-
                 # batch_users is a list of user IDs for this batch
                 # We'll use the first user as representative for this batch
                 user_id = batch_users[0]
                 # Ensure user_id is a single integer, not a list
                 if isinstance(user_id, list):
                     user_id = user_id[0]
-                print(f"Debug: final user_id={user_id}, type={type(user_id)}")
 
-                for item in user_items:
-                    print(f"Debug: item={item}, type={type(item)}")
-                    # Handle case where item might be a list
-                    if isinstance(item, list):
-                        for sub_item in item:
-                            user_item_pairs.append((user_id, sub_item))
-                    else:
-                        user_item_pairs.append((user_id, item))
+                # Create a mapping for this batch - each test instance maps to this user
+                user_item_pairs.append(user_id)
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
