@@ -91,7 +91,7 @@ def test_one_batch(X):
 
 
 def Test(dataset, Recmodel, epoch, cold=False, w=None):
-    u_batch_size = world.config["test_u_batch_size"]  # 100
+    u_batch_size = int(world.config["test_u_batch_size"])  # 100
     # dict
     if cold:
         testDict: dict = dataset.coldTestDict
