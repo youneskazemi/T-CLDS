@@ -101,7 +101,9 @@ class TemporalAwareEncoder(nn.Module):
             nn.Linear(base_dim, base_dim),
             nn.Sigmoid(),
         )
-        self.fuse = nn.Linear(base_dim + time_feat_dim, base_dim)
+        self.fuse = nn.Linear(
+            base_dim + base_dim, base_dim
+        )  # x + (g * tf_proj) = 64 + 64 = 128
         self.dropout = nn.Dropout(drop)
 
     def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
