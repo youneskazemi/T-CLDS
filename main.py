@@ -95,7 +95,7 @@ try:
             "precision@10": None,
             "precision@20": None,
         }
-        if epoch > 2000 and (epoch % 10 == 1 or epoch == world.TRAIN_epochs):
+        if epoch > 0 and (epoch % 50 == 0 or epoch == world.TRAIN_epochs):
             print("[TEST]")
             results = Procedure.Test(dataset, Recmodel, epoch, False)
             # results_cold = Procedure.Test(dataset, Recmodel, epoch, True)
@@ -131,7 +131,9 @@ try:
 
         # Update progress bar with current loss and GPU memory
         gpu_mem = get_gpu_memory()
-        pbar.set_postfix(loss=f"{loss_avg:.3f}", gpu_mem=f"{gpu_mem}MB")
+        # Limit loss display to prevent progress bar cutoff
+        loss_display = f"{loss_avg:.2f}" if loss_avg < 100 else f"{loss_avg:.1f}"
+        pbar.set_postfix(loss=loss_display, gpu_mem=f"{gpu_mem}MB")
 
         # ===== Write to TensorBoard =====
         writer.add_scalar("loss/total", loss_avg, epoch)
