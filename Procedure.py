@@ -160,19 +160,37 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             # Get predictions and ground truth for this k
             r = utils.getLabel(groundTrue_list, [rating[:k] for rating in rating_list])
 
+            # Create user-item mapping for temporal metrics
+            user_item_pairs = []
+            for user_idx, user_items in enumerate(groundTrue_list):
+                for item in user_items:
+                    user_item_pairs.append(
+                        (
+                            users_list[user_idx // u_batch_size][
+                                user_idx % u_batch_size
+                            ],
+                            item,
+                        )
+                    )
+
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
-                groundTrue_list, r, k, dataset
+                groundTrue_list, r, k, dataset, user_item_pairs
             )
 
             # Temporal Recall@K
             results["trecall"][k_idx] = utils.temporal_Recall_atK(
-                groundTrue_list, r, k, dataset
+                groundTrue_list, r, k, dataset, user_item_pairs
             )
 
             # Hit Ratio over Time (1 month window)
             results["hr_time"][k_idx] = utils.Hit_Ratio_over_Time(
-                groundTrue_list, r, k, dataset, time_window_hours=24 * 30
+                groundTrue_list,
+                r,
+                k,
+                dataset,
+                time_window_hours=24 * 30,
+                user_item_pairs=user_item_pairs,
             )
 
         # Format output like the target
