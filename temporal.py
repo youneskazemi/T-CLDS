@@ -115,7 +115,9 @@ class TemporalAwareEncoder(nn.Module):
         tf = self.proj(tf)  # (B, time_feat_dim)
         tf = self.dropout(tf)
         g = self.gate(torch.cat([x, tf], dim=-1))  # (B, D)
-        out = self.fuse(torch.cat([x, g * tf], dim=-1))
+        # Expand tf to match g's dimension for element-wise multiplication
+        tf_expanded = tf.expand(-1, g.size(-1))  # (B, D)
+        out = self.fuse(torch.cat([x, g * tf_expanded], dim=-1))
         return out
 
 
