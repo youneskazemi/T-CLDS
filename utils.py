@@ -402,18 +402,39 @@ def Hit_Ratio_over_Time(
 
             if recent_times:
                 most_recent_time = max(recent_times)
-                time_since_recent = (t_now - most_recent_time) / 3600.0  # hours
                 debug_time_window_checks += 1
 
-                # Check if any predicted item in top-K is within time window
+                # Check if any predicted item in top-K is within time window AFTER most recent
                 hit_found = False
                 for j in range(min(k, len(pred_data[i]))):
-                    if pred_data[i, j] == 1:
-                        # This is a hit - check if it's recent enough
-                        if time_since_recent <= time_window_hours:
-                            hit_found = True
-                            debug_hits_found += 1
-                            break
+                    if pred_data[i, j] == 1:  # This is a hit
+                        # Get the predicted item's interaction time
+                        if (
+                            predicted_items
+                            and i < len(predicted_items)
+                            and j < len(predicted_items[i])
+                        ):
+                            predicted_item_id = predicted_items[i][j]
+                            if isinstance(predicted_item_id, list):
+                                predicted_item_id = predicted_item_id[0]
+
+                            try:
+                                pred_t_interaction, _ = dataset.get_ui_time(
+                                    user_id, predicted_item_id
+                                )
+                                # Check if predicted interaction is within time window AFTER most recent
+                                time_diff = (
+                                    pred_t_interaction - most_recent_time
+                                ) / 3600.0  # hours
+                                if (
+                                    0 <= time_diff <= time_window_hours
+                                ):  # Within window after most recent
+                                    hit_found = True
+                                    debug_hits_found += 1
+                                    break
+                            except Exception:
+                                # If we can't get time for predicted item, skip
+                                continue
 
                 if hit_found:
                     hits_within_window += 1
