@@ -66,6 +66,13 @@ if not os.path.exists(csv_path):
             "recall@20",
             "precision@10",
             "precision@20",
+            # Temporal metrics
+            "tndcg@10",
+            "tndcg@20",
+            "trecall@10",
+            "trecall@20",
+            "hr_time@10",
+            "hr_time@20",
         ]
     )
 else:
@@ -94,6 +101,13 @@ try:
             "recall@20": None,
             "precision@10": None,
             "precision@20": None,
+            # Temporal metrics
+            "tndcg@10": None,
+            "tndcg@20": None,
+            "trecall@10": None,
+            "trecall@20": None,
+            "hr_time@10": None,
+            "hr_time@20": None,
         }
         if epoch > 0 and (epoch % 50 == 0 or epoch == world.TRAIN_epochs):
             print("[TEST]")
@@ -124,6 +138,13 @@ try:
                 "recall@20": float(results["recall"][1]),
                 "precision@10": float(results["precision"][0]),
                 "precision@20": float(results["precision"][1]),
+                # Temporal metrics
+                "tndcg@10": float(results["tndcg"][0]),
+                "tndcg@20": float(results["tndcg"][1]),
+                "trecall@10": float(results["trecall"][0]),
+                "trecall@20": float(results["trecall"][1]),
+                "hr_time@10": float(results["hr_time"][0]),
+                "hr_time@20": float(results["hr_time"][1]),
             }
         loss_avg, comp_avgs = Procedure.BPR_train_original(
             dataset, Recmodel, bpr, epoch
@@ -142,12 +163,21 @@ try:
         writer.add_scalar("loss/attr", comp_avgs.get("attr", 0.0), epoch)
         writer.add_scalar("loss/lbl", comp_avgs.get("lbl", 0.0), epoch)
         if metrics["ndcg@10"] is not None:
+            # Standard metrics
             writer.add_scalar("metric/ndcg@10", metrics["ndcg@10"], epoch)
             writer.add_scalar("metric/ndcg@20", metrics["ndcg@20"], epoch)
             writer.add_scalar("metric/recall@10", metrics["recall@10"], epoch)
             writer.add_scalar("metric/recall@20", metrics["recall@20"], epoch)
             writer.add_scalar("metric/precision@10", metrics["precision@10"], epoch)
             writer.add_scalar("metric/precision@20", metrics["precision@20"], epoch)
+
+            # Temporal metrics
+            writer.add_scalar("temporal/tndcg@10", metrics["tndcg@10"], epoch)
+            writer.add_scalar("temporal/tndcg@20", metrics["tndcg@20"], epoch)
+            writer.add_scalar("temporal/trecall@10", metrics["trecall@10"], epoch)
+            writer.add_scalar("temporal/trecall@20", metrics["trecall@20"], epoch)
+            writer.add_scalar("temporal/hr_time@10", metrics["hr_time@10"], epoch)
+            writer.add_scalar("temporal/hr_time@20", metrics["hr_time@20"], epoch)
 
         # ===== Append to CSV =====
         csv_writer.writerow(
@@ -164,6 +194,13 @@ try:
                 metrics["recall@20"],
                 metrics["precision@10"],
                 metrics["precision@20"],
+                # Temporal metrics
+                metrics["tndcg@10"],
+                metrics["tndcg@20"],
+                metrics["trecall@10"],
+                metrics["trecall@20"],
+                metrics["hr_time@10"],
+                metrics["hr_time@20"],
             ]
         )
         csv_file.flush()

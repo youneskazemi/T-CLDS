@@ -103,6 +103,10 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
         "precision": np.zeros(len(world.topks)),  # 2
         "recall": np.zeros(len(world.topks)),  # 2
         "ndcg": np.zeros(len(world.topks)),
+        # Temporal metrics
+        "tndcg": np.zeros(len(world.topks)),
+        "trecall": np.zeros(len(world.topks)),
+        "hr_time": np.zeros(len(world.topks)),
     }  # 2
     with torch.no_grad():
         users = list(testDict.keys())
@@ -151,10 +155,33 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
         results["precision"] /= float(len(users))
         results["ndcg"] /= float(len(users))
 
+        # Calculate temporal metrics
+        for k_idx, k in enumerate(world.topks):
+            # Get predictions and ground truth for this k
+            r = utils.getLabel(groundTrue_list, [rating[:k] for rating in rating_list])
+
+            # Temporal NDCG@K
+            results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
+                groundTrue_list, r, k, dataset
+            )
+
+            # Temporal Recall@K
+            results["trecall"][k_idx] = utils.temporal_Recall_atK(
+                groundTrue_list, r, k, dataset
+            )
+
+            # Hit Ratio over Time (1 month window)
+            results["hr_time"][k_idx] = utils.Hit_Ratio_over_Time(
+                groundTrue_list, r, k, dataset, time_window_hours=24 * 30
+            )
+
         # Format output like the target
         print(results)
         print(
             f"[TEST] P@10 {results['precision'][0]:.4f} | R@10 {results['recall'][0]:.4f} | NDCG@10 {results['ndcg'][0]:.4f} || P@20 {results['precision'][1]:.4f} | R@20 {results['recall'][1]:.4f} | NDCG@20 {results['ndcg'][1]:.4f}"
+        )
+        print(
+            f"[TEST] tNDCG@10 {results['tndcg'][0]:.4f} | tR@10 {results['trecall'][0]:.4f} | HR@10 {results['hr_time'][0]:.4f} || tNDCG@20 {results['tndcg'][1]:.4f} | tR@20 {results['trecall'][1]:.4f} | HR@20 {results['hr_time'][1]:.4f}"
         )
         print("[TEST] running evaluation...")
         return results

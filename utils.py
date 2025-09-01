@@ -208,5 +208,132 @@ def getLabel(test_data, pred_data):
     return np.array(r).astype("float")
 
 
+# ====================Temporal Metrics==============================
+# =========================================================
+def temporal_NDCG_atK(test_data, r, k, dataset, time_decay_lambda=0.1):
+    """
+    Temporal NDCG@K with exponential time decay
+    Formula: tNDCG@K = (1/IDCG) * sum(rel(i) * f(Δt_i) / log2(i+1))
+    where f(Δt_i) = exp(-λ * Δt_i) is the time decay function
+    """
+    assert len(r) == len(test_data)
+    pred_data = r[:, :k]
+
+    # Get current time for decay calculation
+    t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
+
+    # Calculate DCG with time decay
+    dcg = 0.0
+    idcg = 0.0
+
+    for i, items in enumerate(test_data):
+        length = k if k <= len(items) else len(items)
+
+        # For each relevant item in ground truth
+        for j, item in enumerate(items[:length]):
+            # Get interaction time for this (user, item) pair
+            if hasattr(dataset, "get_ui_time"):
+                t_interaction, _ = dataset.get_ui_time(i, item)
+                # Calculate time difference in hours
+                delta_t = max(0, (t_now - t_interaction) / 3600.0)  # hours
+                time_decay = np.exp(-time_decay_lambda * delta_t)
+            else:
+                time_decay = 1.0  # fallback if no temporal info
+
+            # IDCG calculation (ideal case)
+            idcg += time_decay / np.log2(j + 2)
+
+            # DCG calculation (predicted case)
+            if j < k and pred_data[i, j] == 1:
+                dcg += time_decay / np.log2(j + 2)
+
+    # Normalize
+    if idcg == 0.0:
+        return 0.0
+    return dcg / idcg
+
+
+def temporal_Recall_atK(test_data, r, k, dataset, time_decay_lambda=0.1):
+    """
+    Time-aware Recall@K with exponential time decay
+    Formula: tRecall@K = sum(rel(i) * f(Δt_i)) / sum(f(Δt_i))
+    """
+    assert len(r) == len(test_data)
+    pred_data = r[:, :k]
+
+    t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
+
+    total_weighted_hits = 0.0
+    total_weighted_relevant = 0.0
+
+    for i, items in enumerate(test_data):
+        for j, item in enumerate(items):
+            # Get time decay for this interaction
+            if hasattr(dataset, "get_ui_time"):
+                t_interaction, _ = dataset.get_ui_time(i, item)
+                delta_t = max(0, (t_now - t_interaction) / 3600.0)
+                time_decay = np.exp(-time_decay_lambda * delta_t)
+            else:
+                time_decay = 1.0
+
+            total_weighted_relevant += time_decay
+
+            # Check if this item is in top-K predictions
+            if j < k and pred_data[i, j] == 1:
+                total_weighted_hits += time_decay
+
+    if total_weighted_relevant == 0.0:
+        return 0.0
+    return total_weighted_hits / total_weighted_relevant
+
+
+def Hit_Ratio_over_Time(
+    test_data, r, k, dataset, time_window_hours=24 * 30
+):  # default: 1 month
+    """
+    Hit Ratio over Time: checks if model predicts next interaction within time window T
+    Returns: fraction of users where next interaction is predicted within time window
+    """
+    assert len(r) == len(test_data)
+    pred_data = r[:, :k]
+
+    t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
+    hits_within_window = 0
+    total_users = 0
+
+    for i, items in enumerate(test_data):
+        if len(items) == 0:
+            continue
+
+        total_users += 1
+
+        # Find the most recent interaction time for this user
+        if hasattr(dataset, "get_ui_time"):
+            recent_times = []
+            for item in items:
+                t_interaction, _ = dataset.get_ui_time(i, item)
+                recent_times.append(t_interaction)
+
+            if recent_times:
+                most_recent_time = max(recent_times)
+                time_since_recent = (t_now - most_recent_time) / 3600.0  # hours
+
+                # Check if any predicted item in top-K is within time window
+                hit_found = False
+                for j in range(min(k, len(pred_data[i]))):
+                    if pred_data[i, j] == 1:
+                        # This is a hit - check if it's recent enough
+                        if time_since_recent <= time_window_hours:
+                            hit_found = True
+                            break
+
+                if hit_found:
+                    hits_within_window += 1
+
+    if total_users == 0:
+        return 0.0
+    return hits_within_window / total_users
+
+
 # ====================end Metrics=============================
 # =========================================================
