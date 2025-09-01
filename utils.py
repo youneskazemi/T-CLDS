@@ -373,11 +373,17 @@ def Hit_Ratio_over_Time(
     hits_within_window = 0
     total_users = 0
 
+    # Debug counters
+    debug_total_users = 0
+    debug_hits_found = 0
+    debug_time_window_checks = 0
+
     for i, items in enumerate(test_data):
         if len(items) == 0:
             continue
 
         total_users += 1
+        debug_total_users += 1
 
         # Find the most recent interaction time for this user
         if hasattr(dataset, "get_ui_time") and user_item_pairs:
@@ -397,6 +403,7 @@ def Hit_Ratio_over_Time(
             if recent_times:
                 most_recent_time = max(recent_times)
                 time_since_recent = (t_now - most_recent_time) / 3600.0  # hours
+                debug_time_window_checks += 1
 
                 # Check if any predicted item in top-K is within time window
                 hit_found = False
@@ -405,10 +412,20 @@ def Hit_Ratio_over_Time(
                         # This is a hit - check if it's recent enough
                         if time_since_recent <= time_window_hours:
                             hit_found = True
+                            debug_hits_found += 1
                             break
 
                 if hit_found:
                     hits_within_window += 1
+
+    # Debug output
+    print(
+        f"[HR@T DEBUG] Total users: {debug_total_users}, Hits within window: {debug_hits_found}, Time window checks: {debug_time_window_checks}"
+    )
+    print(
+        f"[HR@T DEBUG] Time window: {time_window_hours} hours ({time_window_hours/24:.1f} days)"
+    )
+    print(f"[HR@T DEBUG] t_now: {t_now}")
 
     if total_users == 0:
         return 0.0
