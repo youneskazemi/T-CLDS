@@ -233,11 +233,17 @@ def temporal_NDCG_atK(
 
         # For each relevant item in ground truth
         for j, item in enumerate(items[:length]):
+            # Handle case where item might be a list
+            if isinstance(item, list):
+                item_id = item[0]  # Extract the actual item ID
+            else:
+                item_id = item
+
             # Get interaction time for this (user, item) pair
             if hasattr(dataset, "get_ui_time") and user_item_pairs:
                 # Find the user ID for this test instance
                 user_id = user_item_pairs[i]  # Each batch maps to one user
-                t_interaction, _ = dataset.get_ui_time(user_id, item)
+                t_interaction, _ = dataset.get_ui_time(user_id, item_id)
                 # Calculate time difference in hours
                 delta_t = max(0, (t_now - t_interaction) / 3600.0)  # hours
                 time_decay = np.exp(-time_decay_lambda * delta_t)
@@ -274,11 +280,17 @@ def temporal_Recall_atK(
 
     for i, items in enumerate(test_data):
         for j, item in enumerate(items):
+            # Handle case where item might be a list
+            if isinstance(item, list):
+                item_id = item[0]  # Extract the actual item ID
+            else:
+                item_id = item
+
             # Get time decay for this interaction
             if hasattr(dataset, "get_ui_time") and user_item_pairs:
                 # Find the user ID for this test instance
                 user_id = user_item_pairs[i]  # Each batch maps to one user
-                t_interaction, _ = dataset.get_ui_time(user_id, item)
+                t_interaction, _ = dataset.get_ui_time(user_id, item_id)
                 delta_t = max(0, (t_now - t_interaction) / 3600.0)
                 time_decay = np.exp(-time_decay_lambda * delta_t)
             else:
@@ -319,9 +331,15 @@ def Hit_Ratio_over_Time(
         if hasattr(dataset, "get_ui_time") and user_item_pairs:
             recent_times = []
             for item in items:
+                # Handle case where item might be a list
+                if isinstance(item, list):
+                    item_id = item[0]  # Extract the actual item ID
+                else:
+                    item_id = item
+
                 # Find the user ID for this test instance
                 user_id = user_item_pairs[i]  # Each batch maps to one user
-                t_interaction, _ = dataset.get_ui_time(user_id, item)
+                t_interaction, _ = dataset.get_ui_time(user_id, item_id)
                 recent_times.append(t_interaction)
 
             if recent_times:
