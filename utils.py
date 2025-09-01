@@ -227,6 +227,8 @@ def temporal_NDCG_atK(
     print(f"[TEMP_DEBUG] pred_data shape: {pred_data.shape}")
     print(f"[TEMP_DEBUG] Sample pred_data: {pred_data[:3]}")
     print(f"[TEMP_DEBUG] Sample test_data: {test_data[:3]}")
+    print(f"[TEMP_DEBUG] Total predictions: {np.sum(pred_data)}")
+    print(f"[TEMP_DEBUG] Non-zero predictions: {np.count_nonzero(pred_data)}")
 
     # Get current time for decay calculation
     t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
@@ -238,6 +240,12 @@ def temporal_NDCG_atK(
     for i, items in enumerate(test_data):
         # Get predictions for this user
         user_preds = pred_data[i]
+
+        # Debug: Print first few users
+        if i < 5:
+            print(
+                f"[TEMP_DEBUG] User {i}: predictions={user_preds}, ground_truth={items}"
+            )
 
         # For each predicted position (j)
         for j in range(k):
