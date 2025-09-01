@@ -181,6 +181,7 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             temporal_test_data = []
             temporal_user_ids = []
             temporal_predictions = []
+            temporal_predicted_items = []  # Store actual predicted item IDs
 
             # Use the same logic as getLabel to create predictions
             for batch_idx, (batch_users, user_items) in enumerate(
@@ -212,9 +213,13 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                                 for pred_item in user_predictions
                             ]
                         )
+
+                        # Store the actual predicted item IDs for temporal metrics
+                        temporal_predicted_items.append(user_predictions)
                     else:
                         # Fallback: use zeros if indexing fails
                         pred_array = np.zeros(k)
+                        temporal_predicted_items.append(np.zeros(k, dtype=int))
 
                     temporal_predictions.append(pred_array)
 
@@ -228,12 +233,22 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
-                temporal_test_data, temporal_predictions, k, dataset, temporal_user_ids
+                temporal_test_data,
+                temporal_predictions,
+                k,
+                dataset,
+                temporal_user_ids,
+                temporal_predicted_items,
             )
 
             # Temporal Recall@K
             results["trecall"][k_idx] = utils.temporal_Recall_atK(
-                temporal_test_data, temporal_predictions, k, dataset, temporal_user_ids
+                temporal_test_data,
+                temporal_predictions,
+                k,
+                dataset,
+                temporal_user_ids,
+                temporal_predicted_items,
             )
 
             # Hit Ratio over Time (1 month window)
@@ -244,6 +259,7 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                 dataset,
                 time_window_hours=24 * 30,
                 user_item_pairs=temporal_user_ids,
+                predicted_items=temporal_predicted_items,
             )
 
         # Format output like the target

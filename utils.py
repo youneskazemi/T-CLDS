@@ -211,7 +211,13 @@ def getLabel(test_data, pred_data):
 # ====================Temporal Metrics==============================
 # =========================================================
 def temporal_NDCG_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
+    test_data,
+    r,
+    k,
+    dataset,
+    user_item_pairs=None,
+    predicted_items=None,
+    time_decay_lambda=0.1,
 ):
     """
     Temporal NDCG@K with exponential time decay
@@ -220,15 +226,6 @@ def temporal_NDCG_atK(
     """
     assert len(r) == len(test_data)
     pred_data = r[:, :k]
-
-    # Debug: Print input shapes and sample data
-    print(f"[TEMP_DEBUG] test_data length: {len(test_data)}")
-    print(f"[TEMP_DEBUG] r shape: {r.shape}")
-    print(f"[TEMP_DEBUG] pred_data shape: {pred_data.shape}")
-    print(f"[TEMP_DEBUG] Sample pred_data: {pred_data[:3]}")
-    print(f"[TEMP_DEBUG] Sample test_data: {test_data[:3]}")
-    print(f"[TEMP_DEBUG] Total predictions: {np.sum(pred_data)}")
-    print(f"[TEMP_DEBUG] Non-zero predictions: {np.count_nonzero(pred_data)}")
 
     # Get current time for decay calculation
     t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
@@ -241,48 +238,39 @@ def temporal_NDCG_atK(
         # Get predictions for this user
         user_preds = pred_data[i]
 
-        # Debug: Print first few users
-        if i < 5:
-            print(
-                f"[TEMP_DEBUG] User {i}: predictions={user_preds}, ground_truth={items}"
-            )
-
-        # Debug: Find users with non-zero predictions
-        if np.sum(user_preds) > 0:
-            print(
-                f"[TEMP_DEBUG] User {i} has {np.sum(user_preds)} correct predictions!"
-            )
-
         # For each predicted position (j)
         for j in range(k):
             if user_preds[j] == 1:  # If this prediction is correct
-                # Find which ground truth item this corresponds to
-                # We need to find the item that was predicted at position j
-                # For now, let's use a simple approach: assume the first ground truth item
-                if len(items) > 0:
-                    item = items[0]  # Use first ground truth item
-                    if isinstance(item, list):
-                        item_id = item[0]
-                    else:
-                        item_id = item
+                # Get the actual predicted item ID at position j
+                if predicted_items and i < len(predicted_items):
+                    predicted_item_id = predicted_items[i][j]
+                else:
+                    # Fallback: use first ground truth item
+                    predicted_item_id = items[0] if len(items) > 0 else 0
 
-                    # Get interaction time for this (user, item) pair
-                    if hasattr(dataset, "get_ui_time") and user_item_pairs:
-                        if i < len(user_item_pairs):
-                            user_id = user_item_pairs[i]
-                            try:
-                                t_interaction, _ = dataset.get_ui_time(user_id, item_id)
-                                delta_t = max(0, (t_now - t_interaction) / 3600.0)
-                                time_decay = np.exp(-time_decay_lambda * delta_t)
-                            except Exception as e:
-                                time_decay = 1.0
-                        else:
+                # Handle case where item might be a list
+                if isinstance(predicted_item_id, list):
+                    predicted_item_id = predicted_item_id[0]
+
+                # Get interaction time for this (user, item) pair
+                if hasattr(dataset, "get_ui_time") and user_item_pairs:
+                    if i < len(user_item_pairs):
+                        user_id = user_item_pairs[i]
+                        try:
+                            t_interaction, _ = dataset.get_ui_time(
+                                user_id, predicted_item_id
+                            )
+                            delta_t = max(0, (t_now - t_interaction) / 3600.0)
+                            time_decay = np.exp(-time_decay_lambda * delta_t)
+                        except Exception as e:
                             time_decay = 1.0
                     else:
                         time_decay = 1.0
+                else:
+                    time_decay = 1.0
 
-                    # DCG calculation (predicted case)
-                    dcg += time_decay / np.log2(j + 2)
+                # DCG calculation (predicted case)
+                dcg += time_decay / np.log2(j + 2)
 
         # IDCG calculation (ideal case) - assume all ground truth items are predicted in order
         for j, item in enumerate(items[:k]):
@@ -309,9 +297,6 @@ def temporal_NDCG_atK(
             # IDCG calculation (ideal case)
             idcg += time_decay / np.log2(j + 2)
 
-    # Debug: Print final values
-    print(f"[TEMP_DEBUG] Final dcg: {dcg}, idcg: {idcg}")
-
     # Normalize
     if idcg == 0.0:
         return 0.0
@@ -319,7 +304,13 @@ def temporal_NDCG_atK(
 
 
 def temporal_Recall_atK(
-    test_data, r, k, dataset, user_item_pairs=None, time_decay_lambda=0.1
+    test_data,
+    r,
+    k,
+    dataset,
+    user_item_pairs=None,
+    predicted_items=None,
+    time_decay_lambda=0.1,
 ):
     """
     Time-aware Recall@K with exponential time decay
@@ -363,7 +354,13 @@ def temporal_Recall_atK(
 
 
 def Hit_Ratio_over_Time(
-    test_data, r, k, dataset, time_window_hours=24 * 30, user_item_pairs=None
+    test_data,
+    r,
+    k,
+    dataset,
+    time_window_hours=24 * 30,
+    user_item_pairs=None,
+    predicted_items=None,
 ):  # default: 1 month
     """
     Hit Ratio over Time: checks if model predicts next interaction within time window T
