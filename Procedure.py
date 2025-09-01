@@ -166,14 +166,27 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                 zip(users_list, groundTrue_list)
             ):
                 # batch_users is a list of user IDs for this batch
-                # We'll use the first user as representative for this batch
-                user_id = batch_users[0]
-                # Ensure user_id is a single integer, not a list
-                if isinstance(user_id, list):
-                    user_id = user_id[0]
+                # user_items is a list of test items for each user in this batch
+                for user_idx, user_id in enumerate(batch_users):
+                    # Ensure user_id is a single integer, not a list
+                    if isinstance(user_id, list):
+                        user_id = user_id[0]
 
-                # Create a mapping for this batch - each test instance maps to this user
-                user_item_pairs.append(user_id)
+                    # For each user in this batch, add their user ID to the mapping
+                    # This ensures we have one user ID per test instance
+                    user_item_pairs.append(user_id)
+
+            # Debug: Print the structure to understand the mapping
+            print(f"[DEBUG] Total users: {len(users)}")
+            print(f"[DEBUG] Total batches: {len(users_list)}")
+            print(f"[DEBUG] user_item_pairs length: {len(user_item_pairs)}")
+            print(
+                f"[DEBUG] groundTrue_list total items: {sum(len(items) for items in groundTrue_list)}"
+            )
+            print(f"[DEBUG] First few user_item_pairs: {user_item_pairs[:10]}")
+            print(
+                f"[DEBUG] First few groundTrue items: {[len(items) for items in groundTrue_list[:5]]}"
+            )
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
