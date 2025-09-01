@@ -160,8 +160,12 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             # Get predictions and ground truth for this k
             r = utils.getLabel(groundTrue_list, [rating[:k] for rating in rating_list])
 
-            # Create user-item mapping for temporal metrics
-            user_item_pairs = []
+            # Flatten the batched data for temporal metrics
+            # groundTrue_list is [[user1_items, user2_items, ...], [user101_items, user102_items, ...], ...]
+            # We need to flatten it to [user1_items, user2_items, user3_items, ...]
+            flattened_groundTrue = []
+            flattened_user_item_pairs = []
+
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
             ):
@@ -172,28 +176,28 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     if isinstance(user_id, list):
                         user_id = user_id[0]
 
-                    # For each user in this batch, add their user ID to the mapping
-                    # This ensures we have one user ID per test instance
-                    user_item_pairs.append(user_id)
+                    # Add this user's test items to the flattened list
+                    flattened_groundTrue.append(user_items[user_idx])
+                    flattened_user_item_pairs.append(user_id)
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
-                groundTrue_list, r, k, dataset, user_item_pairs
+                flattened_groundTrue, r, k, dataset, flattened_user_item_pairs
             )
 
             # Temporal Recall@K
             results["trecall"][k_idx] = utils.temporal_Recall_atK(
-                groundTrue_list, r, k, dataset, user_item_pairs
+                flattened_groundTrue, r, k, dataset, flattened_user_item_pairs
             )
 
             # Hit Ratio over Time (1 month window)
             results["hr_time"][k_idx] = utils.Hit_Ratio_over_Time(
-                groundTrue_list,
+                flattened_groundTrue,
                 r,
                 k,
                 dataset,
                 time_window_hours=24 * 30,
-                user_item_pairs=user_item_pairs,
+                user_item_pairs=flattened_user_item_pairs,
             )
 
         # Format output like the target
