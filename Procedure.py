@@ -182,9 +182,13 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             temporal_user_ids = []
             temporal_predictions = []
 
+            # Use the same logic as getLabel to create predictions
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
             ):
+                # Get predictions for this batch
+                batch_predictions = rating_list[batch_idx]  # shape: (batch_size, max_K)
+
                 for user_idx_in_batch, user_id in enumerate(batch_users):
                     # Ensure user_id is a single integer, not a list
                     if isinstance(user_id, list):
@@ -194,23 +198,20 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     temporal_test_data.append(user_items[user_idx_in_batch])
                     temporal_user_ids.append(user_id)
 
-                    # Get the actual model predictions for this user
-                    # rating_list[batch_idx] contains predictions for all users in this batch
-                    # We need to get the predictions for user_idx_in_batch
-                    if (
-                        batch_idx < len(rating_list)
-                        and user_idx_in_batch < rating_list[batch_idx].shape[0]
-                    ):
-                        # Get the top-k predictions for this user
-                        user_predictions = rating_list[batch_idx][user_idx_in_batch][
+                    # Get predictions for this user and convert to binary using getLabel logic
+                    if user_idx_in_batch < batch_predictions.shape[0]:
+                        user_predictions = batch_predictions[user_idx_in_batch][
                             :k
                         ].numpy()
-                        # Convert to binary: 1 if item is in ground truth, 0 otherwise
                         user_test_items = user_items[user_idx_in_batch]
-                        pred_array = np.zeros(k)
-                        for i, pred_item in enumerate(user_predictions):
-                            if pred_item in user_test_items:
-                                pred_array[i] = 1.0
+
+                        # Use the same logic as getLabel: map(lambda x: x in groundTrue, predictTopK)
+                        pred_array = np.array(
+                            [
+                                1.0 if pred_item in user_test_items else 0.0
+                                for pred_item in user_predictions
+                            ]
+                        )
                     else:
                         # Fallback: use zeros if indexing fails
                         pred_array = np.zeros(k)
@@ -219,6 +220,11 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
 
             # Convert to numpy arrays
             temporal_predictions = np.array(temporal_predictions)
+
+            # Debug: Check if we're getting non-zero predictions
+            print(f"[DEBUG] temporal_predictions shape: {temporal_predictions.shape}")
+            print(f"[DEBUG] temporal_predictions sum: {np.sum(temporal_predictions)}")
+            print(f"[DEBUG] Sample temporal_predictions: {temporal_predictions[:3]}")
 
             # Temporal NDCG@K
             results["tndcg"][k_idx] = utils.temporal_NDCG_atK(
