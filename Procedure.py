@@ -188,14 +188,26 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     temporal_test_data.append(user_items[user_idx_in_batch])
                     temporal_user_ids.append(user_id)
 
-                    # Create a simple prediction array for this user
-                    # This is a simplified approach - in practice you'd want the actual model predictions
-                    user_test_items = user_items[user_idx_in_batch]
-                    pred_array = np.zeros(k)
-                    if len(user_test_items) > 0:
-                        # Simple heuristic: assume some items are predicted
-                        num_predicted = min(len(user_test_items), k)
-                        pred_array[:num_predicted] = 1.0
+                    # Get the actual model predictions for this user
+                    # rating_list[batch_idx] contains predictions for all users in this batch
+                    # We need to get the predictions for user_idx_in_batch
+                    if (
+                        batch_idx < len(rating_list)
+                        and user_idx_in_batch < rating_list[batch_idx].shape[0]
+                    ):
+                        # Get the top-k predictions for this user
+                        user_predictions = rating_list[batch_idx][user_idx_in_batch][
+                            :k
+                        ].numpy()
+                        # Convert to binary: 1 if item is in ground truth, 0 otherwise
+                        user_test_items = user_items[user_idx_in_batch]
+                        pred_array = np.zeros(k)
+                        for i, pred_item in enumerate(user_predictions):
+                            if pred_item in user_test_items:
+                                pred_array[i] = 1.0
+                    else:
+                        # Fallback: use zeros if indexing fails
+                        pred_array = np.zeros(k)
 
                     temporal_predictions.append(pred_array)
 
