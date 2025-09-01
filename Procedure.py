@@ -165,12 +165,21 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             for batch_idx, (batch_users, user_items) in enumerate(
                 zip(users_list, groundTrue_list)
             ):
+                # Debug: print the actual structure
+                print(f"Debug: batch_idx={batch_idx}")
+                print(f"Debug: batch_users={batch_users}, type={type(batch_users)}")
+                print(
+                    f"Debug: batch_users[0]={batch_users[0]}, type={type(batch_users[0])}"
+                )
+
                 # batch_users is a list of user IDs for this batch
                 # We'll use the first user as representative for this batch
                 user_id = batch_users[0]
                 # Ensure user_id is a single integer, not a list
                 if isinstance(user_id, list):
                     user_id = user_id[0]
+                print(f"Debug: final user_id={user_id}, type={type(user_id)}")
+
                 for item in user_items:
                     user_item_pairs.append((user_id, item))
 
