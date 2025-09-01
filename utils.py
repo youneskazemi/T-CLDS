@@ -236,42 +236,64 @@ def temporal_NDCG_atK(
     idcg = 0.0
 
     for i, items in enumerate(test_data):
-        length = k if k <= len(items) else len(items)
+        # Get predictions for this user
+        user_preds = pred_data[i]
 
-        # For each relevant item in ground truth
-        for j, item in enumerate(items[:length]):
-            # Handle case where item might be a list
+        # For each predicted position (j)
+        for j in range(k):
+            if user_preds[j] == 1:  # If this prediction is correct
+                # Find which ground truth item this corresponds to
+                # We need to find the item that was predicted at position j
+                # For now, let's use a simple approach: assume the first ground truth item
+                if len(items) > 0:
+                    item = items[0]  # Use first ground truth item
+                    if isinstance(item, list):
+                        item_id = item[0]
+                    else:
+                        item_id = item
+
+                    # Get interaction time for this (user, item) pair
+                    if hasattr(dataset, "get_ui_time") and user_item_pairs:
+                        if i < len(user_item_pairs):
+                            user_id = user_item_pairs[i]
+                            try:
+                                t_interaction, _ = dataset.get_ui_time(user_id, item_id)
+                                delta_t = max(0, (t_now - t_interaction) / 3600.0)
+                                time_decay = np.exp(-time_decay_lambda * delta_t)
+                            except Exception as e:
+                                time_decay = 1.0
+                        else:
+                            time_decay = 1.0
+                    else:
+                        time_decay = 1.0
+
+                    # DCG calculation (predicted case)
+                    dcg += time_decay / np.log2(j + 2)
+
+        # IDCG calculation (ideal case) - assume all ground truth items are predicted in order
+        for j, item in enumerate(items[:k]):
             if isinstance(item, list):
-                item_id = item[0]  # Extract the actual item ID
+                item_id = item[0]
             else:
                 item_id = item
 
             # Get interaction time for this (user, item) pair
             if hasattr(dataset, "get_ui_time") and user_item_pairs:
-                # Find the user ID for this test instance
                 if i < len(user_item_pairs):
-                    user_id = user_item_pairs[i]  # Each batch maps to one user
+                    user_id = user_item_pairs[i]
                     try:
                         t_interaction, _ = dataset.get_ui_time(user_id, item_id)
-                        # Calculate time difference in hours
-                        delta_t = max(0, (t_now - t_interaction) / 3600.0)  # hours
+                        delta_t = max(0, (t_now - t_interaction) / 3600.0)
                         time_decay = np.exp(-time_decay_lambda * delta_t)
-
                     except Exception as e:
-
                         time_decay = 1.0
                 else:
-                    print()
                     time_decay = 1.0
             else:
-                time_decay = 1.0  # fallback if no temporal info
+                time_decay = 1.0
 
             # IDCG calculation (ideal case)
             idcg += time_decay / np.log2(j + 2)
-
-            # DCG calculation (predicted case)
-            if j < k and pred_data[i, j] == 1:
-                dcg += time_decay / np.log2(j + 2)
 
     # Debug: Print final values
     print(f"[TEMP_DEBUG] Final dcg: {dcg}, idcg: {idcg}")
