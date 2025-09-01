@@ -21,22 +21,28 @@ class BPRLoss:
         Single optimization step.
         If the model supports time-aware loss, it will use t_model/t_raw.
         """
-        # loss, reg_loss = self.model.bpr_loss(users, pos, neg)  # legacy
-        loss, reg_loss, attr_loss, lbl_loss, tag = self.model.bpr_loss(
+        # loss components from model
+        loss_bpr, reg_loss, attr_loss, lbl_loss, tag = self.model.bpr_loss(
             users, pos, neg, epoch, t_model=t_model, t_raw=t_raw
         )
-        attr_loss = attr_loss * 9
-        reg_loss = reg_loss * self.weight_decay
-        loss = loss + reg_loss
-        loss = loss + attr_loss
+        # scale components according to original recipe
+        attr_scaled = attr_loss * 9
+        reg_scaled = reg_loss * self.weight_decay
+        total_loss = loss_bpr + reg_scaled + attr_scaled
         if tag == 1:
-            loss = loss + lbl_loss
+            total_loss = total_loss + lbl_loss
 
         self.opt.zero_grad()
-        loss.backward()
+        total_loss.backward()
         self.opt.step()
 
-        return loss.cpu().item()
+        components = {
+            "bpr": float(loss_bpr.detach().cpu().item()),
+            "reg": float(reg_scaled.detach().cpu().item()),
+            "attr": float(attr_scaled.detach().cpu().item()),
+            "lbl": float(lbl_loss.detach().cpu().item()) if tag == 1 else 0.0,
+        }
+        return float(total_loss.detach().cpu().item()), components
 
 
 def UniformSample_original(users, dataset):

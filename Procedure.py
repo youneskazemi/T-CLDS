@@ -43,6 +43,7 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch):
 
     total_batch = len(users) // world.config["bpr_batch_size"] + 1
     aver_loss = 0.0
+    comp_sums = {"bpr": 0.0, "reg": 0.0, "attr": 0.0, "lbl": 0.0}
 
     for (
         batch_users,
@@ -59,13 +60,17 @@ def BPR_train_original(dataset, recommend_model, loss_class, epoch):
         batch_size=world.config["bpr_batch_size"],
     ):
         # stageOne now accepts optional time tensors
-        cri = bpr.stageOne(
+        total_loss, comps = bpr.stageOne(
             batch_users, batch_pos, batch_neg, epoch, batch_t_model, batch_t_raw
         )
-        aver_loss += cri
+        aver_loss += total_loss
+        for k in comp_sums:
+            comp_sums[k] += comps.get(k, 0.0)
 
     aver_loss = aver_loss / total_batch
-    return aver_loss
+    for k in comp_sums:
+        comp_sums[k] = comp_sums[k] / total_batch
+    return aver_loss, comp_sums
 
 
 def test_one_batch(X):
