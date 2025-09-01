@@ -109,7 +109,7 @@ try:
             "hr_time@10": None,
             "hr_time@20": None,
         }
-        if epoch > 0 and (epoch % 2 == 0 or epoch == world.TRAIN_epochs):
+        if epoch > 0 and (epoch % 50 == 0 or epoch == world.TRAIN_epochs):
             print("[TEST]")
             results = Procedure.Test(dataset, Recmodel, epoch, False)
             # results_cold = Procedure.Test(dataset, Recmodel, epoch, True)
