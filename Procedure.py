@@ -251,13 +251,13 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                 temporal_predicted_items,
             )
 
-            # Hit Ratio over Time (1 month window)
+            # Hit Ratio over Time (6 months window - more appropriate for this dataset)
             results["hr_time"][k_idx] = utils.Hit_Ratio_over_Time(
                 temporal_test_data,
                 temporal_predictions,
                 k,
                 dataset,
-                time_window_hours=24 * 30,
+                time_window_hours=24 * 180,  # 6 months instead of 1 month
                 user_item_pairs=temporal_user_ids,
                 predicted_items=temporal_predicted_items,
             )
