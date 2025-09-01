@@ -191,12 +191,13 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     flattened_groundTrue.append(user_items[user_idx_in_batch])
                     flattened_user_item_pairs.append(user_id)
                     # Also flatten the corresponding r matrix row
-                    # Check bounds before accessing
-                    if batch_idx < len(r) and user_idx_in_batch < len(r[batch_idx]):
+                    # r[batch_idx] is a 2D array: (num_users_in_batch, k)
+                    # We need to get the row for this specific user
+                    if batch_idx < len(r) and user_idx_in_batch < r[batch_idx].shape[0]:
                         flattened_r.append(r[batch_idx][user_idx_in_batch])
                     else:
                         print(
-                            f"[DEBUG] Index out of bounds: batch_idx={batch_idx}, user_idx_in_batch={user_idx_in_batch}, r.shape={r.shape}"
+                            f"[DEBUG] Index out of bounds: batch_idx={batch_idx}, user_idx_in_batch={user_idx_in_batch}, r[batch_idx].shape={r[batch_idx].shape if batch_idx < len(r) else 'N/A'}"
                         )
                         # Use a default value or skip this user
                         flattened_r.append(np.zeros(k))  # Default to all zeros
