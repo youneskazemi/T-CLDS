@@ -132,9 +132,10 @@ class PairDataset:
                 test_data[user].append(item)
             else:
                 test_data[user] = [item]
-        for i in list(test_data.keys()):
-            if self.train_set["user"].value_counts()[i] > 20:
-                del test_data[i]
+        train_counts = self.train_set["user"].value_counts()
+        for u in list(test_data.keys()):
+            if train_counts.get(u, 0) > 20:
+                del test_data[u]
         return test_data
 
     def _getInteractionDic(self):
@@ -268,9 +269,10 @@ class GraphDataset:
                 test_data[user].append(item)
             else:
                 test_data[user] = [item]
-        for i in list(test_data.keys()):
-            if self.train_set["user"].value_counts()[i] > 20:
-                del test_data[i]
+        train_counts = self.train_set["user"].value_counts()
+        for u in list(test_data.keys()):
+            if train_counts.get(u, 0) > 20:
+                del test_data[u]
         return test_data
 
     def getInteractionGraph(self):
