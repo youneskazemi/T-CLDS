@@ -4,20 +4,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# NEW: temporal fusion
+try:
+    from temporal import TemporalAwareEncoder
+except ImportError:
+    TemporalAwareEncoder = None  # allows baseline to run without temporal.py
+
+
 class PureBPR(nn.Module):
     def __init__(self, config, dataset):
         super(PureBPR, self).__init__()
         self.num_users = dataset.n_users
         self.num_items = dataset.m_items
-        self.latent_dim = config['latent_dim_rec']
+        self.latent_dim = config["latent_dim_rec"]
         self.f = nn.Sigmoid()
         self.__init_weight()
 
     def __init_weight(self):
         self.embedding_user = torch.nn.Embedding(
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
         self.embedding_item = torch.nn.Embedding(
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_items, embedding_dim=self.latent_dim
+        )
         nn.init.normal_(self.embedding_user.weight, std=0.1)
         nn.init.normal_(self.embedding_item.weight, std=0.1)
 
@@ -37,9 +46,15 @@ class PureBPR(nn.Module):
         pos_scores = torch.sum(users_emb * pos_emb, dim=1)
         neg_scores = torch.sum(users_emb * neg_emb, dim=1)
         loss = torch.mean(nn.functional.softplus(neg_scores - pos_scores))
-        reg_loss = (1 / 2) * (users_emb.norm(2).pow(2) +
-                              pos_emb.norm(2).pow(2) +
-                              neg_emb.norm(2).pow(2)) / float(len(users))
+        reg_loss = (
+            (1 / 2)
+            * (
+                users_emb.norm(2).pow(2)
+                + pos_emb.norm(2).pow(2)
+                + neg_emb.norm(2).pow(2)
+            )
+            / float(len(users))
+        )
         return loss, reg_loss
 
 
@@ -53,36 +68,63 @@ class LightGCN(nn.Module):
     def _init_weight(self):
         self.num_users = self.dataset.n_users
         self.num_items = self.dataset.m_items
-        self.latent_dim = self.config['latent_dim_rec']
-        self.n_layers = self.config['layer']
+        self.latent_dim = self.config["latent_dim_rec"]
+        self.n_layers = self.config["layer"]
         self.embedding_user = torch.nn.Embedding(  # user embedding
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_user1 = torch.nn.Embedding(    # user embedding
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
+        self.embedding_user1 = torch.nn.Embedding(  # user embedding
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
         self.embedding_user2 = torch.nn.Embedding(  # user embedding
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
-        self.embedding_item = torch.nn.Embedding(    # item embedding
-            num_embeddings=self.num_items, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
+        self.embedding_item = torch.nn.Embedding(  # item embedding
+            num_embeddings=self.num_items, embedding_dim=self.latent_dim
+        )
         self.embedding_social = torch.nn.Embedding(  # social_user embedding
-            num_embeddings=self.num_users, embedding_dim=self.latent_dim)
+            num_embeddings=self.num_users, embedding_dim=self.latent_dim
+        )
         nn.init.normal_(self.embedding_user.weight, std=0.1)
         nn.init.normal_(self.embedding_user1.weight, std=0.1)
         nn.init.normal_(self.embedding_user2.weight, std=0.1)
         nn.init.normal_(self.embedding_item.weight, std=0.1)
         nn.init.normal_(self.embedding_social.weight, std=0.1)
 
-        # self.embedding_user.weight = F.normalize(self.embedding_user.weight,p=2,dim=1)
-        # self.embedding_item.weight = F.normalize(self.embedding_item.weight,p=2,dim=1)
-
         self.f = nn.Sigmoid()
-        self.interactionGraph, self.interactionGraph2 = self.dataset.getInteractionGraph()
+        self.interactionGraph, self.interactionGraph2 = (
+            self.dataset.getInteractionGraph()
+        )
         print(f"{world.model_name} is already to go")
-
 
     def getUsersRating(self, users):
         all_users, all_items = self.final_user, self.final_item
         users_emb = all_users[users.long()]
         items_emb = all_items
+
+        # Temporalized inference (optional)
+        if (
+            hasattr(self, "use_temporal")
+            and self.use_temporal
+            and (TemporalAwareEncoder is not None)
+        ):
+            # use dataset.t_eval as "now"
+            t_now_u = torch.full(
+                (users_emb.size(0),),
+                float(self.dataset.t_eval),
+                device=users_emb.device,
+            )
+            t_now_u = self.dataset.normalize_time_tensor(t_now_u)
+            users_emb = self.temporal_user(users_emb, t_now_u)
+
+            t_now_i = torch.full(
+                (items_emb.size(0),),
+                float(self.dataset.t_eval),
+                device=items_emb.device,
+            )
+            t_now_i = self.dataset.normalize_time_tensor(t_now_i)
+            items_emb = self.temporal_item(items_emb, t_now_i)
+
         rating = self.f(torch.matmul(users_emb, items_emb.t()))
         return rating
 
@@ -102,13 +144,25 @@ class CLDS(LightGCN):
         self.social_i = nn.Linear(self.latent_dim, self.latent_dim, bias=False)
         self.Graph_Comb = Graph_Comb(self.latent_dim)
 
-        # a,b = list(range(1892)),list(range(1892))
-        # a,b = list(range(7375)),list(range(7375))
-        a,b = list(range(world.n_node)),list(range(world.n_node))
+        # temporal switches
+        self.use_temporal = bool(world.config.get("use_temporal", False))
+        if self.use_temporal and (TemporalAwareEncoder is not None):
+            tdim = int(world.config.get("time_feat_dim", 32))
+            tmode = str(world.config.get("temporal_mode", "t2v"))
+            self.temporal_user = TemporalAwareEncoder(
+                self.latent_dim, time_feat_dim=tdim, mode=tmode
+            )
+            self.temporal_item = TemporalAwareEncoder(
+                self.latent_dim, time_feat_dim=tdim, mode=tmode
+            )
+            self.time_tau = float(world.config.get("time_tau", 24.0))  # hours
+            self.time_unit = str(world.config.get("time_unit", "hours"))
+
+        # random shuffle index (kept as-is)
+        a, b = list(range(world.n_node)), list(range(world.n_node))
         np.random.shuffle(a)
         np.random.shuffle(b)
-        self.shuffle_index1, self.shuffle_index2 = torch.tensor(a),torch.tensor(b)
-        # self.item_comb = item_comb(self.latent_dim)
+        self.shuffle_index1, self.shuffle_index2 = torch.tensor(a), torch.tensor(b)
 
     def computer(self, epoch):
         A = self.interactionGraph
@@ -122,34 +176,29 @@ class CLDS(LightGCN):
             embs = [all_emb]
             for layer in range(self.n_layers):
                 if layer == 0:
-
                     all_emb_interaction = torch.sparse.mm(A, all_emb)  # 19524 * 64
                 else:
                     all_emb_interaction = torch.sparse.mm(A2, all_emb)  # 19524 * 64
-                users_emb_interaction, items_emb_next = torch.split(all_emb_interaction,
-                                                                    [self.num_users, self.num_items])
-                users_emb_next = torch.tanh(self.social_i(users_emb_interaction))  # 1892 * 64
+                users_emb_interaction, items_emb_next = torch.split(
+                    all_emb_interaction, [self.num_users, self.num_items]
+                )
+                users_emb_next = torch.tanh(
+                    self.social_i(users_emb_interaction)
+                )  # 1892 * 64
                 all_emb = torch.cat([users_emb_next, items_emb_next])  # 19524 * 64
-
 
                 users_emb_social = torch.sparse.mm(S1, users_emb)  # 1892 * 32
                 users_emb = torch.tanh(self.social_c(users_emb_social))
-
 
                 users = self.social_s(torch.cat([users_emb_next, users_emb], dim=1))
                 users = users / users.norm(2)
                 embs.append(torch.cat([users, items_emb_next]))
             embs = torch.stack(embs, dim=1)
             final_embs = torch.mean(embs, dim=1)
-            # final_embs = all_emb
             users, items = torch.split(final_embs, [self.num_users, self.num_items])
-            # users, items = users_emb_next, items_emb_next
             self.final_user, self.final_item = users, items
 
             self.embedding_user1.weight.data.copy_(users_emb.detach())
-            # self.embedding_user2.weight.data.copy_(users_emb.detach())
-            # self.embedding_user1.weight = users_emb.detach()
-            # self.embedding_user2.weight = users_emb.detach()
             return users, items, 0, 0
 
         items_emb = self.embedding_item.weight
@@ -161,8 +210,6 @@ class CLDS(LightGCN):
         S1 = self.socialGraph2  # user * user
         S2 = self.socialGraph2  # user * user
 
-        # a, b = list(range(1892)), list(range(1892))
-        # a, b = list(range(7375)), list(range(7375))
         a, b = list(range(world.n_node)), list(range(world.n_node))
         np.random.shuffle(a)
         np.random.shuffle(b)
@@ -173,42 +220,41 @@ class CLDS(LightGCN):
         embs = [all_emb]
         logits_true = []
         logits_false = []
-        # all_social = [social_emb]
         for layer in range(self.n_layers):
             if layer == 0:
-
                 all_emb_interaction = torch.sparse.mm(A, all_emb)  # 19524 * 64
             else:
                 all_emb_interaction = torch.sparse.mm(A2, all_emb)  # 19524 * 64
 
-            # all_emb_interaction = torch.sparse.mm(A, all_emb)  # 19524 * 64
-            users_emb_interaction, items_emb_next = torch.split(all_emb_interaction, [self.num_users, self.num_items])
-            users_emb_next = torch.tanh(self.social_i(users_emb_interaction))  # 1892 * 64
+            users_emb_interaction, items_emb_next = torch.split(
+                all_emb_interaction, [self.num_users, self.num_items]
+            )
+            users_emb_next = torch.tanh(
+                self.social_i(users_emb_interaction)
+            )  # 1892 * 64
             all_emb = torch.cat([users_emb_next, items_emb_next])  # 19524 * 64
 
+            users1_emb_social = torch.sparse.mm(S1, users1_emb)
+            users1_emb_social = torch.tanh(self.social_c(users1_emb_social))
 
-            users1_emb_social = torch.sparse.mm(S1, users1_emb)  # 1892 * 32
-            users1_emb_social = torch.tanh(self.social_c(users1_emb_social))  # 1892 * 64
+            users2_emb_social = torch.sparse.mm(S2, users2_emb)
+            users2_emb_social = torch.tanh(self.social_c(users2_emb_social))
 
-            users2_emb_social = torch.sparse.mm(S2, users2_emb)  # 1892 * 64
-            users2_emb_social = torch.tanh(self.social_c(users2_emb_social))  # 1892 * 64
+            users1_neg = torch.sparse.mm(S1, users1_neg)
+            users1_neg = torch.tanh(self.social_c(users1_neg))
+            users2_neg = torch.sparse.mm(S2, users2_neg)
+            users2_neg = torch.tanh(self.social_c(users2_neg))
 
-            users1_neg = torch.sparse.mm(S1, users1_neg)  # 1892 * 32
-            users1_neg = torch.tanh(self.social_c(users1_neg))  # 1892 * 64
-            users2_neg = torch.sparse.mm(S2, users2_neg)  # 1892 * 64
-            users2_neg = torch.tanh(self.social_c(users2_neg))  # 1892 * 64
-
-            c_1 = torch.mean(users1_emb_social, dim=0)        # 1892 * 1
-            c_1 = c_1.expand_as(users1_emb_social)            # 1892 * 64
-            c_2 = torch.mean(users2_emb_social, dim=0)        # 1892 * 1
-            c_2 = c_2.expand_as(users2_emb_social)            # 1892 * 64
-            sc_1 = self.f_k(users2_emb_social, c_1).T         # 1 * 1892
-            sc_2 = self.f_k(users1_emb_social, c_2).T         # 1 * 1892
-            sc_3 = self.f_k(users2_neg, c_1).T                # 1 * 1892
-            sc_4 = self.f_k(users1_neg, c_2).T                # 1 * 1892
-            logits_true.append(torch.cat((sc_1, sc_2), dim = 1))
-            logits_false.append(torch.cat((sc_3, sc_4), dim = 1))
-
+            c_1 = torch.mean(users1_emb_social, dim=0)
+            c_1 = c_1.expand_as(users1_emb_social)
+            c_2 = torch.mean(users2_emb_social, dim=0)
+            c_2 = c_2.expand_as(users2_emb_social)
+            sc_1 = self.f_k(users2_emb_social, c_1).T
+            sc_2 = self.f_k(users1_emb_social, c_2).T
+            sc_3 = self.f_k(users2_neg, c_1).T
+            sc_4 = self.f_k(users1_neg, c_2).T
+            logits_true.append(torch.cat((sc_1, sc_2), dim=1))
+            logits_false.append(torch.cat((sc_3, sc_4), dim=1))
 
             users_emb = (users1_emb_social + users2_emb_social) / 2
             users = self.social_s(torch.cat([users_emb_next, users_emb], dim=1))
@@ -216,13 +262,11 @@ class CLDS(LightGCN):
             embs.append(torch.cat([users, items_emb_next]))
         embs = torch.stack(embs, dim=1)
         logits_true.extend(logits_false)
-        logits = torch.stack(logits_true, dim = 2)
-        logits = logits.view(1,-1,1).squeeze(2)
+        logits = torch.stack(logits_true, dim=2)
+        logits = logits.view(1, -1, 1).squeeze(2)
 
         final_embs = torch.mean(embs, dim=1)
-        # final_embs = all_emb
         users, items = torch.split(final_embs, [self.num_users, self.num_items])
-        # users, items = users_emb_next, items_emb_next
         self.final_user, self.final_item = users, items
         return users, items, logits, 1
 
@@ -232,49 +276,82 @@ class CLDS(LightGCN):
         pos_emb = all_items[pos_items]
         neg_emb = all_items[neg_items]
         users_emb_ego = self.embedding_user(users)
-        # users2_emb_ego = self.embedding_user2(users)
-        # users_emb_ego = self.mapping(torch.cat([users1_emb_ego, users2_emb_ego], dim=1))
         pos_emb_ego = self.embedding_item(pos_items)
         neg_emb_ego = self.embedding_item(neg_items)
-        return users_emb, pos_emb, neg_emb, users_emb_ego, pos_emb_ego, neg_emb_ego, logits, tag
+        return (
+            users_emb,
+            pos_emb,
+            neg_emb,
+            users_emb_ego,
+            pos_emb_ego,
+            neg_emb_ego,
+            logits,
+            tag,
+        )
 
+    def bpr_loss(self, users, pos, neg, epoch, t_model=None, t_raw=None):
+        (users_emb, pos_emb, neg_emb, userEmb0, posEmb0, negEmb0, logits, tag) = (
+            self.getEmbedding(users.long(), pos.long(), neg.long(), epoch)
+        )
 
-    def bpr_loss(self, users, pos, neg, epoch):
-        (users_emb, pos_emb, neg_emb,
-         userEmb0, posEmb0, negEmb0, logits, tag) = self.getEmbedding(users.long(), pos.long(), neg.long(), epoch)
-        # print('pos_emb_shape:',pos_emb.shape)
-        reg_loss = (1 / 2) * (userEmb0.norm(2).pow(2) +
-                              posEmb0.norm(2).pow(2) +
-                              negEmb0.norm(2).pow(2)) / float(len(users))
+        reg_loss = (
+            (1 / 2)
+            * (
+                userEmb0.norm(2).pow(2)
+                + posEmb0.norm(2).pow(2)
+                + negEmb0.norm(2).pow(2)
+            )
+            / float(len(users))
+        )
 
-        pos_scores = torch.mul(users_emb, pos_emb)
-        pos_scores = torch.sum(pos_scores, dim=1)
-        neg_scores = torch.mul(users_emb, neg_emb)
-        neg_scores = torch.sum(neg_scores, dim=1)
+        # ===== Temporal fusion on embeddings (optional) =====
+        if (
+            self.use_temporal
+            and (TemporalAwareEncoder is not None)
+            and (t_model is not None)
+        ):
+            # t_model is normalized time for encoder (B,)
+            users_emb = self.temporal_user(users_emb, t_model)
+            pos_emb = self.temporal_item(pos_emb, t_model)
+            neg_emb = self.temporal_item(neg_emb, t_model)
 
-        '''GOR?'''
+        # base BPR terms
+        pos_scores = torch.sum(users_emb * pos_emb, dim=1)
+        neg_scores = torch.sum(users_emb * neg_emb, dim=1)
 
+        # decorrelation / attribute loss as original
         M_ = torch.mul(users_emb, neg_emb)
         M1 = torch.pow(torch.mean(M_), 2)
-        M2 = torch.mean(torch.pow(M_, 2)) - torch.tensor(1/float(self.latent_dim))
+        M2 = torch.mean(torch.pow(M_, 2)) - torch.tensor(
+            1 / float(self.latent_dim), device=M_.device
+        )
         attr_loss = M1 + F.softplus(M2)
 
-
-        loss = torch.mean(F.softplus(neg_scores - pos_scores))
-
-        # print('loss',loss)
-        # print('reg_loss',reg_loss)
-
-        # return loss, reg_loss
+        # ===== Recency-weighted BPR (optional) =====
+        base = F.softplus(neg_scores - pos_scores)  # (B,)
+        if self.use_temporal and (t_raw is not None):
+            # Assume t_raw are epoch seconds; convert age to hours
+            now = torch.tensor(
+                self.dataset.t_eval, device=base.device, dtype=t_raw.dtype
+            )
+            age_hours = (now - t_raw) / 3600.0  # if ms → divide by 3600*1000
+            loss_weights = torch.exp(
+                -age_hours / max(getattr(self, "time_tau", 24.0), 1e-6)
+            )
+            loss = (loss_weights * base).sum() / (loss_weights.sum() + 1e-8)
+        else:
+            loss = base.mean()
 
         loss_lbl = 0
         if tag == 1:
             b_xent = nn.BCEWithLogitsLoss()
-            lbl_1 = torch.ones((1, logits.detach().shape[1] // 2))
-            lbl_2 = torch.zeros(lbl_1.shape)
-            lbl = torch.cat((lbl_1, lbl_2), 1).cuda()
+            lbl_1 = torch.ones((1, logits.detach().shape[1] // 2), device=base.device)
+            lbl_2 = torch.zeros(lbl_1.shape, device=base.device)
+            lbl = torch.cat((lbl_1, lbl_2), 1)
             loss_lbl = b_xent(logits, lbl)
+
         return loss, reg_loss, attr_loss, loss_lbl, tag
+
 
 class Graph_Comb(nn.Module):
     def __init__(self, embed_dim):
@@ -288,8 +365,8 @@ class Graph_Comb(nn.Module):
         h2 = torch.tanh(self.att_y(y))
         output = self.comb(torch.cat((h1, h2), dim=1))
         output = output / output.norm(2)
-        # output = F.normalize(output, p=2, dim=1)
         return output
+
 
 class item_comb(nn.Module):
     def __init__(self, embed_dim):

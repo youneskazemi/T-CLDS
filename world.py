@@ -6,37 +6,44 @@ import torch
 
 from parse import parse_args
 
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 args = parse_args()
 
 ROOT_PATH = "./"
-DATA_PATH = join(ROOT_PATH, 'data')
-BOARD_PATH = join(ROOT_PATH, 'runs')
-FILE_PATH = join(ROOT_PATH, 'checkpoints')
+DATA_PATH = join(ROOT_PATH, "data")
+BOARD_PATH = join(ROOT_PATH, "runs")
+FILE_PATH = join(ROOT_PATH, "checkpoints")
 
 if not os.path.exists(FILE_PATH):
     os.makedirs(FILE_PATH, exist_ok=True)
 
 config = {}
-all_dataset = ['lastfm', 'ciao','douban']
-all_models = ['bpr', 'LightGCN', 'CLDS']
+all_dataset = ["lastfm", "ciao", "douban"]
+all_models = ["bpr", "LightGCN", "CLDS"]
 
-config['layer'] = args.layer
+config["layer"] = args.layer
 
-config['bpr_batch_size'] = args.bpr_batch
-config['latent_dim_rec'] = args.recdim
+config["bpr_batch_size"] = args.bpr_batch
+config["latent_dim_rec"] = args.recdim
 
-config['lr'] = args.lr
-config['decay'] = args.decay
+config["lr"] = args.lr
+config["decay"] = args.decay
 
-config['test_u_batch_size'] = args.testbatch
+config["test_u_batch_size"] = args.testbatch
 
+# ===== Temporal options (new) =====
+config["use_temporal"] = getattr(args, "use_temporal", False)
+config["temporal_mode"] = getattr(args, "temporal_mode", "t2v")
+config["time_feat_dim"] = getattr(args, "time_feat_dim", 32)
+config["time_tau"] = getattr(args, "time_tau", 24.0)
+config["time_unit"] = getattr(args, "time_unit", "hours")
+config["time_norm"] = getattr(args, "time_norm", "zscore")
 
 GPU = torch.cuda.is_available()
-device = torch.device('cuda' if GPU else "cpu")
+device = torch.device("cuda" if GPU else "cpu")
 seed = args.seed
 LOAD = args.load
-PATH = './checkpoints'
+PATH = "./checkpoints"
 
 dataset = args.dataset
 model_name = args.model
@@ -45,7 +52,7 @@ if dataset not in all_dataset:
 if model_name not in all_models:
     raise NotImplementedError(f"Haven't supported {model_name} yet!, try {all_models}")
 
-n_list = {'lastfm': 1892, 'ciao':7375, 'douban':2848}
+n_list = {"lastfm": 1892, "ciao": 7375, "douban": 2848}
 try:
     n_node = n_list[dataset]
 except:

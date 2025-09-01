@@ -28,26 +28,30 @@ class PairDataset:
     def __init__(self, src="lastfm"):
         self.src = src
 
-        self.train_set = pd.read_csv(f'./data/preprocessed/{src}/train_set.txt')
-        self.test_set = pd.read_csv(f'./data/preprocessed/{src}/test_set.txt')
+        self.train_set = pd.read_csv(f"./data/preprocessed/{src}/train_set.txt")
+        self.test_set = pd.read_csv(f"./data/preprocessed/{src}/test_set.txt")
 
-        self.n_user = pd.concat([self.train_set, self.test_set])['user'].nunique()
-        self.m_item = pd.concat([self.train_set, self.test_set])['item'].nunique()
-        self.trainUser = np.array(self.train_set['user'])
-        self.trainUniqueUser = np.unique(self.train_set['user'])
-        self.trainItem = np.array(self.train_set['item'])
+        self.n_user = pd.concat([self.train_set, self.test_set])["user"].nunique()
+        self.m_item = pd.concat([self.train_set, self.test_set])["item"].nunique()
+        self.trainUser = np.array(self.train_set["user"])
+        self.trainUniqueUser = np.unique(self.train_set["user"])
+        self.trainItem = np.array(self.train_set["item"])
         self._trainDataSize = len(self.train_set)
         self._testDataSize = len(self.test_set)
         print(f"{self._trainDataSize} interactions for training")
         print(f"{self._testDataSize} interactions for testing")
         print(f"Number of users: {self.n_user}\n Number of items: {self.m_item}")
         print(f"Number of Ratings: {self._trainDataSize + self._testDataSize}")
-        print(f"{world.dataset} Rating Density: {(self._trainDataSize + self._testDataSize) / self.n_user / self.m_item}")
+        print(
+            f"{world.dataset} Rating Density: {(self._trainDataSize + self._testDataSize) / self.n_user / self.m_item}"
+        )
 
         # build (users,items), bipartite graph
         self.interactionGraph = None
-        self.UserItemNet = csr_matrix((np.ones(len(self.train_set)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_user, self.m_item))
+        self.UserItemNet = csr_matrix(
+            (np.ones(len(self.train_set)), (self.trainUser, self.trainItem)),
+            shape=(self.n_user, self.m_item),
+        )
         #  user's history interacted items
         self._allPos = self.getUserPosItems(list(range(self.n_user)))
         # get test dictionary
@@ -111,8 +115,8 @@ class PairDataset:
         """
         test_data = {}
         for i in range(len(self.test_set)):
-            user = self.test_set['user'][i]
-            item = self.test_set['item'][i]
+            user = self.test_set["user"][i]
+            item = self.test_set["item"][i]
             if test_data.get(user):
                 test_data[user].append(item)
             else:
@@ -122,14 +126,14 @@ class PairDataset:
     def __build_cold_test(self):
         test_data = {}
         for i in range(len(self.test_set)):
-            user = self.test_set['user'][i]
-            item = self.test_set['item'][i]
+            user = self.test_set["user"][i]
+            item = self.test_set["item"][i]
             if test_data.get(user):
                 test_data[user].append(item)
             else:
                 test_data[user] = [item]
         for i in list(test_data.keys()):
-            if self.train_set['user'].value_counts()[i] > 20:
+            if self.train_set["user"].value_counts()[i] > 20:
                 del test_data[i]
         return test_data
 
@@ -139,8 +143,8 @@ class PairDataset:
 
         def getDict(_set):
             for i in range(len(_set)):
-                user = _set['user'][i]
-                item = _set['item'][i]
+                user = _set["user"][i]
+                item = _set["item"][i]
                 if user_interaction.get(user):
                     user_interaction[user].append(item)
                 else:
@@ -158,28 +162,31 @@ class PairDataset:
 class GraphDataset:
     def __init__(self, src="lastfm"):
         self.src = src
-        self.train_set = pd.read_csv(f'./data/preprocessed/{src}/train_set.txt')
-        self.test_set = pd.read_csv(f'./data/preprocessed/{src}/test_set.txt')
-        self.friendNet = pd.read_csv(f'./data/preprocessed/{src}/trust.txt')
+        self.train_set = pd.read_csv(f"./data/preprocessed/{src}/train_set.txt")
+        self.test_set = pd.read_csv(f"./data/preprocessed/{src}/test_set.txt")
+        self.friendNet = pd.read_csv(f"./data/preprocessed/{src}/trust.txt")
 
-        self.n_user = pd.concat([self.train_set, self.test_set])['user'].nunique()
-        self.m_item = pd.concat([self.train_set, self.test_set])['item'].nunique()
-        self.trainUser = np.array(self.train_set['user']) # train user
-        self.trainUniqueUser = np.unique(self.train_set['user'])
-        self.trainItem = np.array(self.train_set['item']) # train item
+        self.n_user = pd.concat([self.train_set, self.test_set])["user"].nunique()
+        self.m_item = pd.concat([self.train_set, self.test_set])["item"].nunique()
+        self.trainUser = np.array(self.train_set["user"])  # train user
+        self.trainUniqueUser = np.unique(self.train_set["user"])
+        self.trainItem = np.array(self.train_set["item"])  # train item
         self._trainDataSize = len(self.train_set)
         self._testDataSize = len(self.test_set)
         print(f"{self._trainDataSize} interactions for training")
         print(f"{self._testDataSize} interactions for testing")
         print(f"Number of users: {self.n_user}\n Number of items: {self.m_item}")
         print(f"Number of Ratings: {self._trainDataSize + self._testDataSize}")
-        print(f"{world.dataset} Rating Density: {(self._trainDataSize + self._testDataSize) / self.n_user / self.m_item}")
-
+        print(
+            f"{world.dataset} Rating Density: {(self._trainDataSize + self._testDataSize) / self.n_user / self.m_item}"
+        )
 
         self.interactionGraph = None
 
-        self.UserItemNet = csr_matrix((np.ones(len(self.train_set)), (self.trainUser, self.trainItem)),
-                                      shape=(self.n_user, self.m_item))
+        self.UserItemNet = csr_matrix(
+            (np.ones(len(self.train_set)), (self.trainUser, self.trainItem)),
+            shape=(self.n_user, self.m_item),
+        )
         # list
         self._allPos = self.getUserPosItems(list(range(self.n_user)))
         # dict
@@ -244,8 +251,8 @@ class GraphDataset:
         """
         test_data = {}
         for i in range(len(self.test_set)):
-            user = self.test_set['user'][i]
-            item = self.test_set['item'][i]
+            user = self.test_set["user"][i]
+            item = self.test_set["item"][i]
             if test_data.get(user):
                 test_data[user].append(item)
             else:
@@ -255,14 +262,14 @@ class GraphDataset:
     def __build_cold_test(self):
         test_data = {}
         for i in range(len(self.test_set)):
-            user = self.test_set['user'][i]
-            item = self.test_set['item'][i]
+            user = self.test_set["user"][i]
+            item = self.test_set["item"][i]
             if test_data.get(user):
                 test_data[user].append(item)
             else:
                 test_data[user] = [item]
         for i in list(test_data.keys()):
-            if self.train_set['user'].value_counts()[i] > 20:
+            if self.train_set["user"].value_counts()[i] > 20:
                 del test_data[i]
         return test_data
 
@@ -270,43 +277,53 @@ class GraphDataset:
         print("loading adjacency matrix")
         if self.interactionGraph is None:
             try:
-                pre_adj_mat = sp.load_npz(f'./data/preprocessed/{self.src}/interaction_adj1_mat.npz')
-                pre_adj_mat2 = sp.load_npz(f'./data/preprocessed/{self.src}/interaction_adj2_mat.npz')
+                pre_adj_mat = sp.load_npz(
+                    f"./data/preprocessed/{self.src}/interaction_adj1_mat.npz"
+                )
+                pre_adj_mat2 = sp.load_npz(
+                    f"./data/preprocessed/{self.src}/interaction_adj2_mat.npz"
+                )
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
-                norm2_adj = pre_adj_mat
+                norm2_adj = pre_adj_mat2
             except IOError:
                 print("generating adjacency matrix")
                 start = time()
 
-                adj_mat = sp.dok_matrix((self.n_user + self.m_item, self.n_user + self.m_item), dtype=np.float32)
+                adj_mat = sp.dok_matrix(
+                    (self.n_user + self.m_item, self.n_user + self.m_item),
+                    dtype=np.float32,
+                )
                 adj_mat = adj_mat.tolil()
-                adj2_mat = sp.dok_matrix((self.n_user + self.m_item, self.n_user + self.m_item), dtype=np.float32)
+                adj2_mat = sp.dok_matrix(
+                    (self.n_user + self.m_item, self.n_user + self.m_item),
+                    dtype=np.float32,
+                )
                 adj2_mat = adj2_mat.tolil()
                 R = self.UserItemNet.tolil()
                 U_U = R.dot(R.T)
                 I_I = R.T.dot(R)
-                print('u_u is', U_U.shape)
-                print('i_i is', I_I.shape)
-                print('n_user', self.n_user)
-                print('adj_mat', adj_mat.shape)
+                print("u_u is", U_U.shape)
+                print("i_i is", I_I.shape)
+                print("n_user", self.n_user)
+                print("adj_mat", adj_mat.shape)
 
-                adj_mat[:self.n_user, self.n_user:] = R
-                adj_mat[self.n_user:, :self.n_user] = R.T
+                adj_mat[: self.n_user, self.n_user :] = R
+                adj_mat[self.n_user :, : self.n_user] = R.T
                 adj_mat = adj_mat.todok()
 
-                adj2_mat[:self.n_user, :self.n_user] = U_U
-                adj2_mat[self.n_user:, self.n_user:] = I_I
+                adj2_mat[: self.n_user, : self.n_user] = U_U
+                adj2_mat[self.n_user :, self.n_user :] = I_I
                 adj2_mat = adj2_mat.todok()
 
                 rowsum = np.array(adj_mat.sum(axis=1))  # D
                 d_inv = np.power(rowsum, -0.5).flatten()  # D^-0.5
-                d_inv[np.isinf(d_inv)] = 0.
+                d_inv[np.isinf(d_inv)] = 0.0
                 d_mat = sp.diags(d_inv)
 
                 rowsum2 = np.array(adj2_mat.sum(axis=1))  # D
                 d2_inv = np.power(rowsum2, -0.5).flatten()  # D^-0.5
-                d2_inv[np.isinf(d2_inv)] = 0.
+                d2_inv[np.isinf(d2_inv)] = 0.0
                 d2_mat = sp.diags(d2_inv)
 
                 # D^-0.5 * A * D^-0.5
@@ -314,12 +331,17 @@ class GraphDataset:
                 norm_adj = norm_adj.dot(d_mat)
                 norm_adj = norm_adj.tocsr()
 
-                norm2_adj = d_mat.dot(adj2_mat)
+                norm2_adj = d2_mat.dot(adj2_mat)
                 norm2_adj = norm2_adj.dot(d2_mat)
                 norm2_adj = norm2_adj.tocsr()
                 print(f"costing {time() - start}s, saved norm_mat...")
-                sp.save_npz(f'./data/preprocessed/{self.src}/interaction_adj1_mat.npz', norm_adj)
-                sp.save_npz(f'./data/preprocessed/{self.src}/interaction_adj2_mat.npz', norm2_adj)
+                sp.save_npz(
+                    f"./data/preprocessed/{self.src}/interaction_adj1_mat.npz", norm_adj
+                )
+                sp.save_npz(
+                    f"./data/preprocessed/{self.src}/interaction_adj2_mat.npz",
+                    norm2_adj,
+                )
 
             self.interactionGraph = _convert_sp_mat_to_sp_tensor(norm_adj)
             self.interactionGraph = self.interactionGraph.coalesce().to(world.device)
@@ -334,8 +356,8 @@ class GraphDataset:
 
         def getDict(_set):
             for i in range(len(_set)):
-                user = _set['user'][i]
-                item = _set['item'][i]
+                user = _set["user"][i]
+                item = _set["item"][i]
                 if user_interaction.get(user):
                     user_interaction[user].append(item)
                 else:
@@ -354,24 +376,69 @@ class SocialGraphDataset(GraphDataset):
     def __init__(self, src):
         super(SocialGraphDataset, self).__init__(src)
 
-        self.friendNet = pd.read_csv(f'./data/preprocessed/{src}/trust.txt')
+        self.friendNet = pd.read_csv(f"./data/preprocessed/{src}/trust.txt")
 
-        self.socialNet = csr_matrix((np.ones(len(self.friendNet)), (self.friendNet['user'], self.friendNet['friend'])),
-                                    shape=(self.n_user, self.n_user))
+        self.socialNet = csr_matrix(
+            (
+                np.ones(len(self.friendNet)),
+                (self.friendNet["user"], self.friendNet["friend"]),
+            ),
+            shape=(self.n_user, self.n_user),
+        )
 
         self.interactionGraph = None
         self.socialGraph1 = None
         self.socialGraph2 = None
         self.socialGraph3 = None
 
-
         print(f"Number of Links: {len(self.friendNet)}")
-        print(f"{world.dataset} Link Density: {len(self.friendNet) / self.n_user / self.n_user}")
+        print(
+            f"{world.dataset} Link Density: {len(self.friendNet) / self.n_user / self.n_user}"
+        )
+
+        # === Time handling (NEW) ===
+        # pick the time column if present
+        self._time_col = "time" if "time" in self.train_set.columns else None
+
+        if self._time_col is None:
+            # fallback: synthetic per-user order as time
+            tmp = self.train_set.copy()
+            tmp["__rank"] = tmp.groupby("user").cumcount()
+            self.train_set["__time_num"] = tmp["__rank"].astype(float)
+            self._time_col = "__time_num"
+            print(
+                "[warn] No 'time' column found in train_set; using per-user order as synthetic time."
+            )
+        else:
+            # ensure numeric epoch seconds
+            if not np.issubdtype(self.train_set[self._time_col].dtype, np.number):
+                self.train_set[self._time_col] = pd.to_datetime(
+                    self.train_set[self._time_col], errors="coerce"
+                )
+                self.train_set[self._time_col] = (
+                    self.train_set[self._time_col].astype("int64") // 10**9
+                )
+
+        # stats for normalization
+        _ts_all = self.train_set[self._time_col].astype(float).values
+        self.t_min = float(np.min(_ts_all)) if len(_ts_all) else 0.0
+        self.t_max = float(np.max(_ts_all)) if len(_ts_all) else 1.0
+        self.t_mean = float(np.mean(_ts_all)) if len(_ts_all) else 0.5
+        self.t_std = float(np.std(_ts_all) + 1e-6) if len(_ts_all) else 1.0
+        self.t_eval = self.t_max  # "now" for inference
+
+        # fast (u,i)->time lookup for sampler/loss
+        self._ui_time = {
+            (int(r.user), int(r.item)): float(r[self._time_col])
+            for _, r in self.train_set.iterrows()
+        }
 
     def getSocialGraph1(self):
         if self.socialGraph1 is None:
             try:
-                pre_adj_mat = sp.load_npz(f'./data/preprocessed/{self.src}/social1_adj_mat.npz')
+                pre_adj_mat = sp.load_npz(
+                    f"./data/preprocessed/{self.src}/social1_adj_mat.npz"
+                )
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             except IOError:
@@ -380,10 +447,13 @@ class SocialGraphDataset(GraphDataset):
                 R = self.UserItemNet.tolil()
 
                 rowsum = np.array(R.sum(axis=1))
-                print('The number of user\'s average preference items:',sum(rowsum) / len(rowsum))
+                print(
+                    "The number of user's average preference items:",
+                    sum(rowsum) / len(rowsum),
+                )
                 d_inv = np.power(rowsum, -0.5).flatten()
                 # d_inv = np.power(rowsum, -1).flatten()
-                d_inv[np.isinf(d_inv)] = 0.
+                d_inv[np.isinf(d_inv)] = 0.0
                 d_mat = sp.diags(d_inv)
 
                 adj_mat = self.socialNet.tolil()
@@ -396,10 +466,10 @@ class SocialGraphDataset(GraphDataset):
                 kk = 0
                 edge = 0
                 tmp_R = np.array(R.todense())
-                for i,j in zip(self.friendNet['user'], self.friendNet['friend']):
+                for i, j in zip(self.friendNet["user"], self.friendNet["friend"]):
                     tt = tmp_R[i] + tmp_R[j]
-                    #print('####################################', tt.shape)
-                    tmp_degree = sum(tt==2)
+                    # print('####################################', tt.shape)
+                    tmp_degree = sum(tt == 2)
                     kk += tmp_degree
                     edge += 1
                     # value.append(tmp_degree)
@@ -409,15 +479,19 @@ class SocialGraphDataset(GraphDataset):
                     #     user_mean[j] = user_mean[j] - 0.5
                 avg_kk = kk / edge
 
-                print('avg_kk:', avg_kk)
+                print("avg_kk:", avg_kk)
                 # user_mean = np.power(user_mean, -1).flatten()
                 # user_mean[np.isinf(user_mean)] = 0.
                 # user_mean = sp.diags(user_mean)
 
                 # norm_adj = user_mean.dot(norm_adj)
                 simNet = csr_matrix(
-                    (np.array(value), (self.friendNet['user'], self.friendNet['friend'])),
-                    shape=(self.n_user, self.n_user)).tolil()
+                    (
+                        np.array(value),
+                        (self.friendNet["user"], self.friendNet["friend"]),
+                    ),
+                    shape=(self.n_user, self.n_user),
+                ).tolil()
 
                 norm_adj = norm_adj.multiply(simNet)
                 norm_adj = norm_adj + sp.eye(norm_adj.shape[0])
@@ -434,7 +508,9 @@ class SocialGraphDataset(GraphDataset):
                 # norm_adj = norm_adj.dot(d_mat)
                 # norm_adj = norm_adj.tocsr()
                 print(f"costing {time() - start}s, saved norm_mat...")
-                sp.save_npz(f'./data/preprocessed/{self.src}/social1_adj_mat.npz', norm_adj)
+                sp.save_npz(
+                    f"./data/preprocessed/{self.src}/social1_adj_mat.npz", norm_adj
+                )
 
             self.socialGraph1 = _convert_sp_mat_to_sp_tensor(norm_adj)
             self.socialGraph1 = self.socialGraph1.coalesce().to(world.device)
@@ -443,7 +519,9 @@ class SocialGraphDataset(GraphDataset):
     def getSocialGraph2(self):
         if self.socialGraph2 is None:
             try:
-                pre_adj_mat = sp.load_npz(f'./data/preprocessed/{self.src}/social2_adj_mat.npz')
+                pre_adj_mat = sp.load_npz(
+                    f"./data/preprocessed/{self.src}/social2_adj_mat.npz"
+                )
                 print("successfully loaded...")
                 norm_adj = pre_adj_mat
             except IOError:
@@ -453,18 +531,19 @@ class SocialGraphDataset(GraphDataset):
 
                 rowsum = np.array(adj_mat.sum(axis=1))
                 d_inv = np.power(rowsum, -0.5).flatten()
-                d_inv[np.isinf(d_inv)] = 0.
+                d_inv[np.isinf(d_inv)] = 0.0
                 d_mat = sp.diags(d_inv)
 
                 norm_adj = d_mat.dot(adj_mat)
                 norm_adj = norm_adj.dot(d_mat)
                 norm_adj = norm_adj.tocsr()
                 print(f"costing {time() - start}s, saved norm_mat...")
-                sp.save_npz(f'./data/preprocessed/{self.src}/social2_adj_mat.npz', norm_adj)
+                sp.save_npz(
+                    f"./data/preprocessed/{self.src}/social2_adj_mat.npz", norm_adj
+                )
             self.socialGraph2 = _convert_sp_mat_to_sp_tensor(norm_adj)
             self.socialGraph2 = self.socialGraph2.coalesce().to(world.device)
         return self.socialGraph2
-
 
     def getDenseSocialGraph(self):
         if self.socialGraph1 is None:
@@ -473,4 +552,33 @@ class SocialGraphDataset(GraphDataset):
             # self.socialGraph3 = self.getSocialGraph3().to_dense()
         else:
             pass
-        return self.socialGraph1, self.socialGraph2#, self.socialGraph3
+        return self.socialGraph1, self.socialGraph2  # , self.socialGraph3
+
+    def normalize_time_scalar(self, t: float):
+        mode = world.config.get("time_norm", "zscore")
+        if mode == "zscore":
+            return (t - self.t_mean) / self.t_std
+        elif mode == "minmax":
+            denom = max(self.t_max - self.t_min, 1e-6)
+            return (t - self.t_min) / denom
+        elif mode == "log1p":
+            return np.log1p(max(t - self.t_min, 0.0))
+        else:
+            return float(t)
+
+    def normalize_time_tensor(self, t: torch.Tensor) -> torch.Tensor:
+        mode = world.config.get("time_norm", "zscore")
+        if mode == "zscore":
+            return (t - self.t_mean) / self.t_std
+        elif mode == "minmax":
+            denom = max(self.t_max - self.t_min, 1e-6)
+            return (t - self.t_min) / denom
+        elif mode == "log1p":
+            return torch.log1p(torch.clamp(t - self.t_min, min=0.0))
+        else:
+            return t
+
+    def get_ui_time(self, user: int, item: int):
+        """Return (raw_epoch_seconds, normalized_for_model) for a (user,item) positive."""
+        t = self._ui_time.get((int(user), int(item)), self.t_mean)
+        return float(t), float(self.normalize_time_scalar(t))
