@@ -230,6 +230,18 @@ def temporal_NDCG_atK(
     # Get current time for decay calculation
     t_now = dataset.t_eval if hasattr(dataset, "t_eval") else 0.0
 
+    # Debug: Print input information
+    print(f"[TEMP_DEBUG] temporal_NDCG_atK called with:")
+    print(f"[TEMP_DEBUG] - test_data length: {len(test_data)}")
+    print(f"[TEMP_DEBUG] - r shape: {r.shape}")
+    print(
+        f"[TEMP_DEBUG] - predicted_items length: {len(predicted_items) if predicted_items else 'None'}"
+    )
+    print(
+        f"[TEMP_DEBUG] - user_item_pairs length: {len(user_item_pairs) if user_item_pairs else 'None'}"
+    )
+    print(f"[TEMP_DEBUG] - t_now: {t_now}")
+
     # Calculate DCG with time decay
     dcg = 0.0
     idcg = 0.0
@@ -241,12 +253,19 @@ def temporal_NDCG_atK(
         # For each predicted position (j)
         for j in range(k):
             if user_preds[j] == 1:  # If this prediction is correct
+                # Debug: Print when we find a correct prediction
+                print(f"[TEMP_DEBUG] User {i}, position {j}: Found correct prediction!")
+
                 # Get the actual predicted item ID at position j
                 if predicted_items and i < len(predicted_items):
                     predicted_item_id = predicted_items[i][j]
+                    print(f"[TEMP_DEBUG] - predicted_item_id: {predicted_item_id}")
                 else:
                     # Fallback: use first ground truth item
                     predicted_item_id = items[0] if len(items) > 0 else 0
+                    print(
+                        f"[TEMP_DEBUG] - Using fallback predicted_item_id: {predicted_item_id}"
+                    )
 
                 # Handle case where item might be a list
                 if isinstance(predicted_item_id, list):
@@ -262,15 +281,26 @@ def temporal_NDCG_atK(
                             )
                             delta_t = max(0, (t_now - t_interaction) / 3600.0)
                             time_decay = np.exp(-time_decay_lambda * delta_t)
+                            print(
+                                f"[TEMP_DEBUG] - user_id: {user_id}, t_interaction: {t_interaction}, delta_t: {delta_t}, time_decay: {time_decay}"
+                            )
                         except Exception as e:
                             time_decay = 1.0
+                            print(f"[TEMP_DEBUG] - Exception getting time: {e}")
                     else:
                         time_decay = 1.0
+                        print(
+                            f"[TEMP_DEBUG] - i >= len(user_item_pairs), using time_decay: 1.0"
+                        )
                 else:
                     time_decay = 1.0
+                    print(
+                        f"[TEMP_DEBUG] - No get_ui_time or user_item_pairs, using time_decay: 1.0"
+                    )
 
                 # DCG calculation (predicted case)
                 dcg += time_decay / np.log2(j + 2)
+                print(f"[TEMP_DEBUG] - Added to dcg: {time_decay / np.log2(j + 2)}")
 
         # IDCG calculation (ideal case) - assume all ground truth items are predicted in order
         for j, item in enumerate(items[:k]):
@@ -298,9 +328,13 @@ def temporal_NDCG_atK(
             idcg += time_decay / np.log2(j + 2)
 
     # Normalize
+    print(f"[TEMP_DEBUG] Final dcg: {dcg}, idcg: {idcg}")
     if idcg == 0.0:
+        print(f"[TEMP_DEBUG] idcg is 0, returning 0.0")
         return 0.0
-    return dcg / idcg
+    result = dcg / idcg
+    print(f"[TEMP_DEBUG] Returning result: {result}")
+    return result
 
 
 def temporal_Recall_atK(
