@@ -160,6 +160,15 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
             # Get predictions and ground truth for this k
             r = utils.getLabel(groundTrue_list, [rating[:k] for rating in rating_list])
 
+            # Debug: Print the structure to understand what r looks like
+            print(f"[DEBUG] r shape: {r.shape}")
+            print(f"[DEBUG] r type: {type(r)}")
+            print(f"[DEBUG] groundTrue_list length: {len(groundTrue_list)}")
+            print(f"[DEBUG] rating_list length: {len(rating_list)}")
+            print(
+                f"[DEBUG] First few elements of r: {r[:2] if len(r) > 0 else 'empty'}"
+            )
+
             # Flatten the batched data for temporal metrics
             # groundTrue_list is [[user1_items, user2_items, ...], [user101_items, user102_items, ...], ...]
             # We need to flatten it to [user1_items, user2_items, user3_items, ...]
@@ -182,7 +191,15 @@ def Test(dataset, Recmodel, epoch, cold=False, w=None):
                     flattened_groundTrue.append(user_items[user_idx_in_batch])
                     flattened_user_item_pairs.append(user_id)
                     # Also flatten the corresponding r matrix row
-                    flattened_r.append(r[batch_idx][user_idx_in_batch])
+                    # Check bounds before accessing
+                    if batch_idx < len(r) and user_idx_in_batch < len(r[batch_idx]):
+                        flattened_r.append(r[batch_idx][user_idx_in_batch])
+                    else:
+                        print(
+                            f"[DEBUG] Index out of bounds: batch_idx={batch_idx}, user_idx_in_batch={user_idx_in_batch}, r.shape={r.shape}"
+                        )
+                        # Use a default value or skip this user
+                        flattened_r.append(np.zeros(k))  # Default to all zeros
 
                     user_idx_global += 1
 
