@@ -247,6 +247,12 @@ def temporal_NDCG_atK(
                 f"[TEMP_DEBUG] User {i}: predictions={user_preds}, ground_truth={items}"
             )
 
+        # Debug: Find users with non-zero predictions
+        if np.sum(user_preds) > 0:
+            print(
+                f"[TEMP_DEBUG] User {i} has {np.sum(user_preds)} correct predictions!"
+            )
+
         # For each predicted position (j)
         for j in range(k):
             if user_preds[j] == 1:  # If this prediction is correct
