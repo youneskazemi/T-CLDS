@@ -93,6 +93,8 @@ class TemporalAwareEncoder(nn.Module):
             in_dim = time_feat_dim
 
         self.proj = nn.Linear(in_dim, time_feat_dim)
+        # Project time features to base dimension for gating
+        self.time_proj = nn.Linear(time_feat_dim, base_dim, bias=False)
         self.gate = nn.Sequential(
             nn.Linear(base_dim + time_feat_dim, base_dim),
             nn.GELU(),
@@ -115,9 +117,9 @@ class TemporalAwareEncoder(nn.Module):
         tf = self.proj(tf)  # (B, time_feat_dim)
         tf = self.dropout(tf)
         g = self.gate(torch.cat([x, tf], dim=-1))  # (B, D)
-        # Expand tf to match g's dimension for element-wise multiplication
-        tf_expanded = tf.expand(-1, g.size(-1))  # (B, D)
-        out = self.fuse(torch.cat([x, g * tf_expanded], dim=-1))
+        # Project time features to base dimension for gating
+        tf_proj = self.time_proj(tf)  # (B, D)
+        out = self.fuse(torch.cat([x, g * tf_proj], dim=-1))
         return out
 
 
